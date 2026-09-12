@@ -129,6 +129,11 @@ model Campaign {
   familyRelations FamilyRelation[]
   mysteries       Mystery[]
 
+  monsters   Monster[]
+  items      Item[]
+  powers     Power[]
+  rollTables RollTable[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -183,7 +188,7 @@ enum IdeaState {
 /// Tipos de entidade que podem participar de um Relationship. Estender este
 /// enum é o custo esperado para plugar um novo tipo de conteúdo no sistema de
 /// relacionamentos (ver ARCHITECTURE.md). TIMELINE_EVENT e MYSTERY chegaram
-/// na Fase 5 (ver ARCHITECTURE.md, seção 16.1).
+/// na Fase 5 (seção 16.1); MONSTER, ITEM e POWER chegaram na Fase 6 (seção 17.1).
 enum RelatableEntityType {
   NPC
   LOCATION
@@ -194,6 +199,9 @@ enum RelatableEntityType {
   CONSEQUENCE
   TIMELINE_EVENT
   MYSTERY
+  MONSTER
+  ITEM
+  POWER
 }
 
 enum RelationshipImportance {
@@ -368,6 +376,9 @@ model Tag {
   consequences   ConsequenceTag[]
   timelineEvents TimelineEventTag[]
   mysteries      MysteryTag[]
+  monsters       MonsterTag[]
+  items          ItemTag[]
+  powers         PowerTag[]
 
   @@unique([campaignId, slug])
   @@map("tags")
@@ -1010,4 +1021,197 @@ model Clue {
 
   @@index([mysteryId, order])
   @@map("clues")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Fase 6 — Game Tools (Monster/Boss/Item Forge, Power Builder,
+// Loot Generator, Table Builder)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Monstro ou Chefe da campanha (Monster/Boss Forge). `isBoss` distingue um
+/// chefe de um monstro comum no mesmo modelo, em vez de duas tabelas — ver
+/// ARCHITECTURE.md, seção 17.1. Participa de Tags/Relacionamentos/Busca como
+/// as demais entidades de conteúdo (mesmo critério de `Faction`/`Npc`).
+model Monster {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name        String
+  imageUrl    String?
+  isBoss      Boolean @default(false)
+  description String?
+
+  canonStatus CanonStatus @default(DRAFT)
+  visibility  Visibility  @default(GM_ONLY)
+  favorite    Boolean     @default(false)
+  archived    Boolean     @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attributes MonsterAttribute[]
+  tags       MonsterTag[]
+
+  @@index([campaignId, archived])
+  @@index([campaignId, favorite])
+  @@map("monsters")
+}
+
+/// Estatística livre de um monstro (ex.: "HP" → "40", "Ataque" → "+5") — uma
+/// lista de chave/valor, filho direto (FK real, mesmo padrão de Clue/Scene),
+/// porque não existe um conjunto fixo de atributos que sirva a todo sistema
+/// de jogo (ver ARCHITECTURE.md, seções 14.3 e 17.1).
+model MonsterAttribute {
+  id        String  @id @default(cuid())
+  monsterId String
+  monster   Monster @relation(fields: [monsterId], references: [id], onDelete: Cascade)
+
+  key   String
+  value String
+  order Int    @default(0)
+
+  @@index([monsterId, order])
+  @@map("monster_attributes")
+}
+
+model MonsterTag {
+  monsterId String
+  monster   Monster @relation(fields: [monsterId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([monsterId, tagId])
+  @@index([tagId])
+  @@map("monster_tags")
+}
+
+/// Item da campanha (Item Forge). `category` cobre "tipo/raridade" como um
+/// único campo de texto livre (ex. "Arma rara", "Anel +1") — ver
+/// ARCHITECTURE.md, seção 17.1, para o porquê de não ter dois campos fixos.
+model Item {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name        String
+  imageUrl    String?
+  category    String?
+  description String?
+  effect      String?
+
+  canonStatus CanonStatus @default(DRAFT)
+  visibility  Visibility  @default(GM_ONLY)
+  favorite    Boolean     @default(false)
+  archived    Boolean     @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags ItemTag[]
+
+  @@index([campaignId, archived])
+  @@index([campaignId, favorite])
+  @@map("items")
+}
+
+model ItemTag {
+  itemId String
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tagId  String
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, tagId])
+  @@index([tagId])
+  @@map("item_tags")
+}
+
+/// Poder/habilidade/magia (Power Builder). `cost` é texto livre (ex. "2 PM",
+/// "Ação bônus") pelo mesmo motivo de `MonsterAttribute`: cada sistema de
+/// jogo tem seu próprio recurso de custo — ver ARCHITECTURE.md, seção 17.2.
+model Power {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name        String
+  cost        String?
+  description String?
+  effect      String?
+
+  canonStatus CanonStatus @default(DRAFT)
+  visibility  Visibility  @default(GM_ONLY)
+  favorite    Boolean     @default(false)
+  archived    Boolean     @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags PowerTag[]
+
+  @@index([campaignId, archived])
+  @@index([campaignId, favorite])
+  @@map("powers")
+}
+
+model PowerTag {
+  powerId String
+  power   Power  @relation(fields: [powerId], references: [id], onDelete: Cascade)
+  tagId   String
+  tag     Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([powerId, tagId])
+  @@index([tagId])
+  @@map("power_tags")
+}
+
+enum RollTableKind {
+  GENERIC
+  LOOT
+}
+
+/// Tabela de rolagem genérica (Table Builder). O Loot Generator é a MESMA
+/// tabela com `kind = LOOT`, não um modelo separado — ver ARCHITECTURE.md,
+/// seção 17.3, para a decisão de reaproveitar em vez de duplicar. Sem
+/// `visibility`/tags/Relacionamentos: é uma ferramenta de mesa do mestre, não
+/// conteúdo compartilhável da wiki (mesmo raciocínio de `NarrativeClock`, 16.2).
+model RollTable {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  kind        RollTableKind @default(GENERIC)
+
+  favorite Boolean @default(false)
+  archived Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entries RollTableEntry[]
+
+  @@index([campaignId, archived])
+  @@index([campaignId, kind])
+  @@map("roll_tables")
+}
+
+/// Entrada sorteável de uma RollTable. `weight` substitui uma faixa numérica
+/// explícita (ex. "1-3") — o peso já representa o tamanho do intervalo sem
+/// exigir do mestre calcular/validar limites contra o dado usado (ver
+/// ARCHITECTURE.md, seção 17.3).
+model RollTableEntry {
+  id      String    @id @default(cuid())
+  tableId String
+  table   RollTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+
+  label  String
+  weight Int    @default(1)
+  order  Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([tableId, order])
+  @@map("roll_table_entries")
 }
