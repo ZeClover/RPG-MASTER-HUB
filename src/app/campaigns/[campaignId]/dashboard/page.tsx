@@ -254,13 +254,18 @@ export default async function CampaignDashboardPage({ params }: DashboardPagePro
       </Card>
 
       <Card>
-        <CardHeader className="flex-row items-center gap-2 space-y-0">
-          <Brain className="size-4 text-primary" />
-          <CardTitle>Campaign Brain</CardTitle>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <div className="flex items-center gap-2">
+            <Brain className="size-4 text-primary" />
+            <CardTitle>Campaign Brain</CardTitle>
+          </div>
+          <Link href={`/campaigns/${campaignId}/brain`} className="text-sm text-primary hover:underline">
+            Abrir →
+          </Link>
         </CardHeader>
         <CardContent className="pt-0 text-sm text-muted-foreground">
-          Em breve (Fase 7), este painel vai reunir tramas abertas, NPCs esquecidos, consequências pendentes
-          e relógios narrativos em um só lugar — usando os dados estruturados da própria campanha.
+          Distribuição canônico/rascunho e o feed de tudo que mudou na campanha, incluindo Timeline, Mistérios,
+          Monstros, Itens, Poderes, Tabelas e Sessões — não só o que aparece nos cards acima.
         </CardContent>
       </Card>
     </div>
