@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
   CalendarCheck,
+  Clock,
   Dices,
   GitBranch,
   History,
@@ -73,6 +74,7 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
     href: (id) => `/campaigns/${id}/timeline`,
     section: "Mundo",
   },
+  { key: "clocks", label: "Relógios", icon: Clock, href: (id) => `/campaigns/${id}/clocks`, section: "Mundo" },
 
   { key: "game", label: "Jogo", icon: Dices, comingSoonPhase: "Fase 6", section: "Em breve" },
   { key: "audio", label: "Music/SFX Board", icon: Music, href: (id) => `/campaigns/${id}/audio`, section: "Áudio" },
