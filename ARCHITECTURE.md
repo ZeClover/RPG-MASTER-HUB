@@ -11,7 +11,7 @@ Dentro do app, o código se organiza em duas dimensões:
 - **`app/`** — apenas rotas. Layouts e páginas são finos: buscam sessão/dados via `modules/`, e delegam toda a lógica de domínio.
 - **`modules/<domínio>/<entidade>/`** — a lógica de negócio de verdade: `schemas.ts` (Zod), `actions.ts` (Server Actions), `queries.ts` (leituras). Mapeia diretamente para os domínios do briefing (CORE, CREATION, STORY, GAME, MEDIA, AUDIO, INTELLIGENCE, PLAYER).
 
-Até a Fase 0 só existia o módulo `core` (`auth`, `campaigns`, `permissions`). A Fase 1 introduziu o domínio `creation`: `modules/creation/<entidade>/` para cada tipo de conteúdo (NPCs, Locais, Facções, Lore, Ideias) mais dois módulos transversais que várias entidades compartilham (`tags`, `relationships`). A Fase 2 introduziu o domínio `preparation` (Sessões, Missões, Tramas, Consequências). A Fase 4 introduziu o domínio `audio` (Music/SFX Board — `modules/audio/`), mapeando para o domínio AUDIO do briefing. A Fase 5 introduziu o domínio `worldbuilding` (Timeline, Calendário, Relógios Narrativos, Family Tree, Mystery Board — `modules/worldbuilding/<entidade>/`), mapeando para o domínio STORY/World Building do briefing. A Fase 6 introduziu o domínio `gametools` (Monster/Item/Power Forge, Table Builder, Loot Generator — `modules/gametools/<entidade>/`), mapeando para o domínio GAME avançado do briefing. Os domínios ainda não usados (INTELLIGENCE, PLAYER) continuam sem pasta — mesma regra da Fase 0, pastas vazias não têm valor.
+Até a Fase 0 só existia o módulo `core` (`auth`, `campaigns`, `permissions`). A Fase 1 introduziu o domínio `creation`: `modules/creation/<entidade>/` para cada tipo de conteúdo (NPCs, Locais, Facções, Lore, Ideias) mais dois módulos transversais que várias entidades compartilham (`tags`, `relationships`). A Fase 2 introduziu o domínio `preparation` (Sessões, Missões, Tramas, Consequências). A Fase 4 introduziu o domínio `audio` (Music/SFX Board — `modules/audio/`), mapeando para o domínio AUDIO do briefing. A Fase 5 introduziu o domínio `worldbuilding` (Timeline, Calendário, Relógios Narrativos, Family Tree, Mystery Board — `modules/worldbuilding/<entidade>/`), mapeando para o domínio STORY/World Building do briefing. A Fase 6 introduziu o domínio `gametools` (Monster/Item/Power Forge, Table Builder, Loot Generator — `modules/gametools/<entidade>/`), mapeando para o domínio GAME avançado do briefing. A Fase 7 introduziu o domínio `intelligence` (Campaign Brain avançado, Context Engine, Campaign Health, Content Graveyard — `modules/intelligence/<entidade>/`), mapeando para o domínio INTELLIGENCE do briefing — 100% agregação/heurística sobre dados já existentes, zero chamada de IA (ver seção 18.0). O domínio ainda não usado (PLAYER) continua sem pasta — mesma regra da Fase 0, pastas vazias não têm valor.
 
 ## 2. Stack
 
@@ -55,6 +55,9 @@ src/
       monsters/, items/, powers/            — Forge + Power Builder (Fase 6)
       tables/, loot/                        — Table Builder e Loot Generator (Fase 6, mesmo modelo RollTable
                                                com kind GENERIC/LOOT — seção 17.3)
+      brain/, context/, health/, graveyard/ — Inteligência da campanha (Fase 7): Campaign Brain avançado,
+                                               Context Engine (context/[type]/[id]), Campaign Health,
+                                               Content Graveyard — ver seção 18
     api/
       auth/[...nextauth]/                 — handlers do Auth.js
       v1/uploads/                         — upload de imagens e áudio (autenticado, mínimo CO_GM — seção 15.11)
@@ -94,6 +97,14 @@ src/
       roll-tables/ — schemas, `roll.ts` (sorteio ponderado puro), `roll-actions.ts`, actions (RollTable +
                      `entry-actions.ts`), queries — motor único por trás de Table Builder e Loot Generator,
                      diferenciados só por `RollTableKind` (Fase 6, ver seção 17.3)
+    intelligence/
+      content-types.ts — `ContentEntityType` e mapas de label/ícone/rota compartilhados pelas 4 sub-features
+                          (mais amplo que `RelatableEntityType` — seção 18.6)
+      brain/           — queries (feed unificado + distribuição canônico/rascunho, Fase 7, seção 18.1)
+      context-engine/  — queries (`getEntityContext`, raio-x de uma entidade relacionável, seção 18.2)
+      health/          — queries (6 heurísticas de diagnóstico, sem pontuação numérica, seção 18.3)
+      graveyard/       — queries (agrega `archived: true` de todos os tipos) + actions (despachante fino
+                         sobre `toggle*ArchivedAction`/`delete*Action` já existentes, seção 18.4)
   components/
     ui/            — primitivas (Button, Card, Dialog, DropdownMenu, Tooltip, Avatar, Select, Popover...)
     layout/        — topbar, sidebar de campanha, menu de usuário
@@ -117,6 +128,9 @@ src/
     powers/         — formulário de poder (Fase 6)
     roll-tables/    — formulário de tabela, lista de entradas (peso/chance), roller com botão "Rolar" e
                       registro opcional no Session Log (Fase 6, reaproveitado por Table Builder e Loot Generator)
+    intelligence/   — feed de atividade unificado, gráfico de distribuição canônico/rascunho, seletor de
+                      entidade do Context Engine, painel de pistas que citam a entidade, seções de
+                      diagnóstico do Campaign Health, linha de item do Content Graveyard (Fase 7)
   lib/
     db.ts          — client Prisma singleton
     auth.ts        — config do Auth.js
@@ -248,6 +262,13 @@ RollTable           — nome/descrição, kind RollTableKind, favorite/archived 
 RollTableEntry      — filho direto de RollTable (FK real, Cascade): label/weight/order — `weight` substitui uma
                        faixa numérica explícita (ex. "1-3"), o peso já representa o tamanho do intervalo (17.3)
 ```
+
+### Modelo de dados (Fase 7)
+
+Nenhum modelo novo. As quatro sub-features são queries de leitura (e, no caso do Content Graveyard, um despachante
+para actions que já existiam por entidade) sobre os modelos das Fases 1–6 — ver seção 18.0 para a avaliação
+explícita de por que nenhuma tabela nova foi necessária, e seção 18.6 para `ContentEntityType`, o único tipo
+novo desta fase (TypeScript puro, não um enum de banco).
 
 ## 5. Autenticação
 
@@ -536,7 +557,66 @@ O sorteio (`roll.ts`, `rollWeightedEntries`) é puro — sem I/O, mesma filosofi
 
 Por fim, o roteiro sugeria (opcionalmente) persistir o resultado de uma rolagem no Session Log. Implementamos isso como um botão "Registrar no Log da Sessão" no roller, que reaproveita `createLogEntryAction` (`modules/game/session-log/actions.ts`, já existente desde a Fase 3) com `type: "NOTE"` em vez de criar um novo `SessionLogEntryType` — o resultado de uma tabela é só mais uma anotação de texto, exatamente como uma rolagem de dado já é registrada como texto formatado (seção 14.4), sem justificar um tipo de entrada dedicado só para isso.
 
-## 18. Roadmap de fases
+## 18. Fase 7 — Decisões técnicas
+
+### 18.0 Escopo central: pré-IA, não IA de verdade
+
+A decisão mais importante desta fase é o que ela **não** faz: nenhuma chamada de rede a um provedor de LLM, nenhuma "sugestão inteligente" gerada por um modelo, nenhuma dependência nova de API externa. As quatro sub-features (Campaign Brain avançado, Context Engine, Campaign Health, Content Graveyard) são inteligência no sentido de **agregação e heurística sobre dados que já existem** — o hub cruza informação que o próprio mestre já cadastrou (contadores, `updatedAt`, `canonStatus`, `archived`, Tags, Relacionamentos) e mostra algo útil, mas não "pensa" sobre a campanha. A Fase 8 ("IA") é onde entram Lore Guardian, Canon Checker, Campaign Recall e Consequence Suggester — aí sim chamando um modelo de linguagem de verdade, sempre como copiloto, nunca como autoridade. Confundir as duas coisas nesta fase teria sido o erro mais fácil de cometer, dado o nome do domínio ("Inteligência") — por isso este corte está registrado aqui explicitamente, antes de qualquer outra decisão desta seção.
+
+Consequência prática: nenhuma das quatro sub-features abaixo precisou de uma tabela nova no banco. As quatro são queries de leitura (algumas com pequenas funções puras de agregação) sobre modelos que já existiam desde as Fases 1–6, mais um punhado de actions que já existiam por entidade (`toggle*ArchivedAction`/`delete*Action`, seção 12.7) reaproveitadas por um despachante fino. A migração `20260912`... nem chegou a ser criada — `prisma migrate status` confirmou o schema já estava em dia antes de qualquer código desta fase.
+
+### 18.1 Campaign Brain avançado: feed unificado + distribuição canônico/rascunho, não um "resumo de tudo"
+
+O Dashboard da Fase 1 (`core/dashboard/queries.ts`) já cobre "recentes" e "favoritos", mas só para os 8 tipos de conteúdo que existiam até a Fase 2 (NPC/Local/Facção/Lore/Ideia/Missão/Trama/Consequência) — Timeline, Relógios, Mistérios, Monstros, Itens, Poderes, Tabelas e Sessões (Fases 5-6) nunca entraram lá. Em vez de reescrever o Dashboard (fora de escopo: ele é a tela do dia a dia, deliberadamente enxuta), o Campaign Brain (`modules/intelligence/brain/queries.ts`, painel `/campaigns/[campaignId]/brain`) é a versão "completa":
+
+- **`listUnifiedRecentActivity`** — o mesmo padrão de `listRecentEntities` do Dashboard (uma query por tipo, `Promise.all`, merge + sort por `updatedAt` em memória), mas para os 17 tipos de conteúdo hoje existentes na campanha (todo `ContentEntityType`, seção 18.6). É literalmente "o que mudou desde a última vez", exatamente como o roadmap sugeria — sem precisar guardar um timestamp de "última visita" por usuário (o que exigiria uma tabela nova só para isso); `updatedAt`, que já existe em toda entidade, já responde a pergunta.
+- **`getCanonStatusBreakdown`** — quanto de cada tipo com `canonStatus` (os 7 da seção 12.2: NPC/Local/Facção/Lore/Monstro/Item/Poder) está em cada estágio do enum, via `groupBy` (uma query por tipo, nunca carregando as linhas inteiras). Deliberadamente inclui conteúdo arquivado na contagem — `canonStatus` é o eixo narrativo, `archived` é o eixo organizacional (seção 12.2), e um item arquivado não deixa de ter uma resposta para "isso é canônico?".
+
+O que foi **descartado** e por quê: um terceiro card de "contagem total por tipo" (tipo o grid de `contentCounts` do Dashboard, mas com os 17 tipos) foi cogitado e descartado por redundância — o Dashboard já cobre a maioria, e a proporção arquivado/ativo por tipo já é o assunto do Campaign Health (seção 18.3); um terceiro lugar mostrando quase a mesma coisa seria ruído, não "avançado". O card "Campaign Brain" (placeholder desde a Fase 1) no Dashboard foi atualizado para linkar para o painel de verdade em vez do texto "Em breve".
+
+### 18.2 Context Engine: raio-x de uma entidade, não um segundo formulário
+
+"Dado qualquer entidade relacionável, uma página que agrega tudo que já se sabe sobre ela" descreve exatamente o problema que o roadmap da Fase 1 já cobria parcialmente (Relacionamentos + Tags aparecem hoje na própria página de detalhe de cada entidade). O valor real do Context Engine (`modules/intelligence/context-engine/queries.ts`, painel `/campaigns/[campaignId]/context/[type]/[id]`) não está em repetir o que a ficha de cada entidade já mostra — está em fazer isso **para qualquer um dos 12 tipos de `RelatableEntityType` com uma única UI**, e em somar uma referência cruzada que **nenhuma outra página do app mostra hoje**:
+
+- **`getEntityContext`** busca, em paralelo: (1) os dados próprios da entidade (`loadSubject`, um `switch` de 12 `case`s que chama o `get<Entidade>ForUser` que cada módulo já tinha desde sua própria fase — não uma query nova por tipo), normalizados num formato comum (`ContextSubject`: nome/subtítulo/badges/campos preenchidos/tags); (2) `listRelationshipsForEntity` (Fase 1, sem alteração); (3) parentescos via `listFamilyRelationsForNpc`/`groupFamilyRelationsForNpc` (Fase 5), só quando `type === "NPC"`; (4) **`findCluesLinkedToEntity`** (novo, uma função pequena em `worldbuilding/mysteries/queries.ts`) — o inverso de `resolveClueLinks` (seção 16.4): dado uma entidade, quais Pistas de Mistério apontam para ela. Hoje isso não aparece em NENHUM lugar — abrir o NPC "Franz" não mostra que uma pista do Mistério "Quem matou o mercador?" o cita; só abrir o Mistério mostra o vínculo saindo dele. Essa é a peça que faz o Context Engine ser mais que "a mesma ficha de novo".
+- **"Dados próprios" é um resumo, não uma cópia do formulário.** Os 12 tipos têm formatos de dados muito diferentes (NPC tem 7 campos de texto longo; Missão tem status+objetivo+recompensa; Mistério tem uma lista de Pistas). Em vez de reimplementar a exibição completa de cada um (12 variantes de UI, todas já existindo nas páginas de detalhe reais), o painel mostra os campos preenchidos + badges de status/visibilidade + (quando existem) atributos de Monstro/Pistas de Mistério, e um link "Ficha completa" para a página de detalhe de verdade — que continua sendo o lugar de editar. Isso evita duplicar lógica de exibição sem perder a essência do "raio-x".
+- **Seletor reaproveita infraestrutura existente.** `EntityContextPicker` (tipo + busca) chama `searchRelatableEntitiesAction`, a mesma Server Action que já existe desde a Fase 1 para o seletor de alvo de Relacionamentos (`RelationshipTargetPicker`) — zero query nova de busca.
+
+### 18.3 Campaign Health: listas categorizadas com limiar explícito, nunca uma pontuação numérica
+
+O roadmap pedia heurísticas honestas, e deu exemplos concretos (Missões paradas, Tramas dormentes, conteúdo preso em rascunho, órfãos, arquivado vs. ativo) sem pedir uma nota consolidada. Optamos deliberadamente por **não** inventar um "Health Score" de 0 a 100 — qualquer fórmula desse tipo (ex.: "10 pontos por trama dormente, -5 por conteúdo órfão...") seria um número que parece objetivo mas esconde pesos arbitrários que ninguém pediu, e uma campanha "saudável" para um mestre (poucas tramas ativas, ritmo lento de propósito) pareceria "doente" para outro. Uma lista categorizada ("isto está dormente há X dias") é uma afirmação verificável; uma pontuação é uma opinião disfarçada de métrica. `modules/intelligence/health/queries.ts` expõe seis heurísticas independentes, cada uma um `STALE_DAYS = 30` fixo e documentado (não configurável nesta fase — um campo de configuração por campanha seria a evolução natural se o limiar de 30 dias se provar errado na prática, mas não há pedido real para isso ainda):
+
+- Missões `ACTIVE` sem edição há mais de 30 dias.
+- Tramas `DORMANT` (sem limiar de tempo — o próprio status já diz "parada").
+- Mistérios `OPEN` sem edição há mais de 30 dias.
+- Conteúdo com `canonStatus` `DRAFT`/`PROPOSED` há mais de 30 dias, nos 7 tipos que têm esse eixo.
+- **Conteúdo órfão** — nenhuma linha em `Relationship` menciona a entidade (nos 12 `RelatableEntityType`, não arquivados). A implementação busca TODAS as linhas de `Relationship` da campanha **uma vez** (um `Set` de `"TIPO:id"` visto) e cruza contra os IDs de cada tipo em memória — nunca uma query de contagem por entidade, que seria N+1 numa campanha com centenas de itens.
+- Proporção arquivado/ativo por tipo, cobrindo os 17 tipos de `ARCHIVABLE_ENTITY_TYPES` (seção 18.6) — um `Promise.all` de 34 `count()` (ativo+arquivado por tipo), não 17 queries que já trariam as duas contagens (Prisma não tem um "count agrupado por boolean" mais barato que dois `count()` aqui, dado que cada tipo é uma tabela diferente).
+
+### 18.4 Content Graveyard: despachante fino sobre as actions que já existem, não uma nova exclusão segura
+
+O requisito ("lugar único para revisar/limpar conteúdo arquivado") não precisa de lógica de arquivamento nova — os 16 tipos com campo `archived` (todo `ContentEntityType` da seção 18.6) já tinham `toggle*ArchivedAction` e `delete*Action` desde a fase que os criou (confirmado por grep antes de escrever qualquer código: todos os 16 já existiam — nenhum precisou ser criado). `modules/intelligence/graveyard/actions.ts` é por isso só um `switch` que decide qual action já existente chamar a partir do `type`; a checagem de permissão, a limpeza transacional de `Relationship`s e regras especiais (ex.: `deleteLocationAction` recusa apagar um Local com filhos, seção 12.4) continuam vivendo exclusivamente no módulo original de cada entidade — o Graveyard nunca duplica essa lógica.
+
+Duas consequências assumidas, ambas documentadas em vez de "corrigidas" com complexidade extra:
+
+- **Excluir a partir do Graveyard redireciona para a lista daquele tipo, não de volta ao Graveyard.** `delete*Action` sempre termina com `redirect(/campaigns/:id/<tipo>)` — esse é o comportamento de sempre dessas actions quando chamadas da própria página de detalhe da entidade, e o Graveyard reaproveita a action tal como ela é. Criar uma segunda versão "sem redirect" só para este painel seria exatamente o tipo de duplicação que a Fase 7 evita; o mestre volta ao Graveyard com um clique a mais no menu.
+- **Restaurar (desarquivar) exigiu um `router.refresh()` explícito no componente cliente.** `toggle*ArchivedAction` só chama `revalidatePath` para a lista/detalhe daquela entidade (ex. `/campaigns/:id/factions`) — ela não tem por que saber que uma página `/graveyard` existe em cima dela. Sem isso, o item restaurado "gruda" visualmente na lista do Graveyard até a próxima navegação completa (o Router Cache do Next.js do lado do cliente não sabia que precisava buscar `/graveyard` de novo) — o mesmo tipo de dessincronia do Router Cache já documentado na seção 13.6, mas aqui com uma causa mais simples (nenhum `revalidatePath` cobria a rota) e uma correção direta, sem precisar investigar mais fundo: `GraveyardItemRow` chama `router.refresh()` depois de `await`ar a action de restaurar.
+
+### 18.5 Bug pré-existente descoberto: checkbox desmarcado quebrava criar Monstro comum e faixa de áudio sem loop
+
+Durante o teste end-to-end desta fase (criar um Monstro pelo formulário de verdade, não direto no banco), `createMonsterAction` falhava silenciosamente sempre que o checkbox "É um chefe (Boss)" ficava **desmarcado** — ou seja, no caso mais comum (a maioria dos monstros não é chefe). A causa: um `<input type="checkbox">` HTML desmarcado não aparece no `FormData` como `false`, mas como **ausente**, e `formData.get("isBoss")` retorna `null` nesse caso (não `undefined`) — enquanto `monsterFormSchema` tinha `isBoss: z.string().optional()`, que só trata `undefined` como "campo ausente" e rejeita `null` como um valor de tipo errado (`"Invalid input: expected string, received null"`). O formulário de Monstro só mostrava erro visível para o campo `name`, então a falha de validação era invisível para o usuário: o formulário simplesmente "não fazia nada" ao submeter.
+
+Uma busca por todo `type="checkbox"` do projeto achou o mesmo padrão em `AudioTrack.loop` (`audioTrackFormSchema`, Fase 4) — só não se manifestava com a mesma frequência porque o checkbox de loop vem **marcado por padrão** (a maioria das faixas de música realmente re-toca em loop), então só desmarcá-lo para criar um efeito sonoro avulso (SFX, que tipicamente não deveria repetir) expunha o mesmo bug. Os outros dois checkboxes do projeto (`Clue.discovered`, `ChecklistItem.done`) não usam esse padrão de criação-via-FormData — são alternados por uma action dedicada que lê o valor atual do banco e inverte, sem passar por Zod, então não tinham o problema.
+
+Corrigido normalizando a leitura de ambos os campos para `formData.get(campo) || undefined` antes de validar (transforma `null` em `undefined`, preserva `"on"` quando marcado) — a correção mínima, sem mudar o schema ou a lógica que já lê `=== "on"` depois. Isso pré-existia desde a Fase 6 (`isBoss`) e a Fase 4 (`loop`); nenhuma das duas fases tinha testado criar esse tipo de conteúdo com o checkbox desmarcado antes.
+
+### 18.6 `ContentEntityType`: um universo mais amplo que `RelatableEntityType`, só para as features que precisam dele
+
+Três das quatro sub-features (Brain, Health, Graveyard) precisam enxergar **todo** conteúdo arquivável da campanha — não só os 12 tipos de `RelatableEntityType` (que participam do sistema de Relacionamentos), mas também Ideias, Relógios Narrativos, Tabelas de Rolagem (Table Builder e Loot Generator contam como dois tipos de UI, mesmo sendo o mesmo modelo `RollTable` com `kind` diferente — seção 17.3) e Sessões de preparação — conteúdo real da campanha que ficou de fora de `RelatableEntityType` por razões já documentadas (seções 12.1, 13.5, 16.2, 17.3): não têm página de detalhe própria para linkar de volta, ou são ferramentas de mesa do mestre, não conteúdo compartilhável da wiki.
+
+Em vez de forçar esses 5 tipos extras para dentro de `RelatableEntityType` (o que exigiria dar a Ideias/Relógios uma página de detalhe só para satisfazer um enum, ou fingir que uma Tabela de Rolagem pode ser o alvo de um Relacionamento, quando a seção 17.3 já decidiu que não faz sentido), `modules/intelligence/content-types.ts` define `ContentEntityType = RelatableEntityType | "IDEA" | "NARRATIVE_CLOCK" | "ROLL_TABLE_GENERIC" | "ROLL_TABLE_LOOT" | "SESSION_PLAN"` — um tipo maior, só para as três features que genuinamente precisam de "todo conteúdo", com seus próprios mapas de label/ícone/rota (reaproveitando `ENTITY_TYPE_LABELS`/`ENTITY_TYPE_ICONS`/`ENTITY_TYPE_PATH` de `relationships/config.ts` via spread, mais as 5 entradas extras). O Context Engine continua usando `RelatableEntityType` puro — ele é sobre relações, então o universo menor é o correto para ele, não uma limitação a contornar.
+
+## 19. Roadmap de fases
 
 | Fase | Escopo |
 | --- | --- |
@@ -547,7 +627,7 @@ Por fim, o roteiro sugeria (opcionalmente) persistir o resultado de uma rolagem 
 | **4 — Áudio** ✅ | Music/SFX Board, os dois bots do Discord (trilha sonora + efeitos) |
 | **5 — World Building** ✅ | Timeline, Calendário, Relógios Narrativos, Family Tree, Mystery Board |
 | **6 — Game Tools** ✅ | Monster/Boss/Item Forge, Power Builder, Table Builder, Loot Generator (construído sobre o Table Builder) |
-| 7 — Inteligência da campanha | Campaign Brain avançado, Context Engine, Campaign Health, Content Graveyard |
+| **7 — Inteligência da campanha** ✅ | Campaign Brain avançado, Context Engine, Campaign Health, Content Graveyard — 100% heurística/agregação sobre dados locais, zero IA (seção 18.0) |
 | 8 — IA | Lore Guardian, Canon Checker, Campaign Recall, Consequence Suggester (sempre copiloto, nunca autoridade) |
 | 9 — Jogadores | Player View, Player Knowledge, Handouts, Co-Mestres, permissões avançadas |
 
