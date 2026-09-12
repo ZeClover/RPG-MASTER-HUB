@@ -102,8 +102,8 @@ O gerador mudou de `prisma-client-js` para `prisma-client`: o client gerado vai 
 
 ```
 Npc, Location, Faction, LorePage   — entidades de conteúdo. Campos comuns: campaignId, nome/título,
-                                      canonStatus (DRAFT|CANON|DEPRECATED), archived, favorite,
-                                      visibility (MASTER_ONLY|PLAYERS|PUBLIC), timestamps
+                                      canonStatus (DRAFT|PROPOSED|APPROVED|CANON|OBSOLETE|ARCHIVED),
+                                      archived, favorite, visibility (GM_ONLY|PLAYERS|PUBLIC), timestamps
 Location.parentLocationId          — auto-relação (hierarquia), onDelete: Restrict (seção 12.4)
 Idea                                — captura rápida; só título é obrigatório; sem canonStatus/visibility
                                       (é pré-canônico por natureza — ver 12.2)
@@ -141,7 +141,7 @@ Os dados nunca ficam presos ao dispositivo: tudo passa pelo Postgres via Server 
 
 ## 9. Permissões
 
-Um único helper, `requireCampaignAccess(userId, campaignId, minRole?)`, usado por toda action/rota que toca dado de campanha — nunca a UI sozinha decide o que é permitido (seção 12.7 detalha o padrão de exclusão segura que depende disso). Na Fase 0 só o papel `OWNER` existia de fato; a partir da Fase 1 o ranking `OWNER > CO_GM > PLAYER` já é aplicado de verdade: toda criação/edição/exclusão de conteúdo exige `CO_GM` (o padrão do parâmetro `minRole` é `PLAYER`, suficiente para leitura). A UI para promover alguém a `CO_GM`/`PLAYER` (convites) ainda não existe — isso é Fase 9 — mas a checagem de papel já está pronta para quando existir. Visibilidade por conteúdo (`MASTER_ONLY`/`PLAYERS`/`PUBLIC`) chegou na Fase 1 como campo nas entidades de conteúdo (NPCs, Locais, Facções, Lore); ainda não há um "Player View" (Fase 9) que efetivamente filtre por ela — hoje o campo só é exibido como metadado.
+Um único helper, `requireCampaignAccess(userId, campaignId, minRole?)`, usado por toda action/rota que toca dado de campanha — nunca a UI sozinha decide o que é permitido (seção 12.7 detalha o padrão de exclusão segura que depende disso). Na Fase 0 só o papel `OWNER` existia de fato; a partir da Fase 1 o ranking `OWNER > CO_GM > PLAYER` já é aplicado de verdade: toda criação/edição/exclusão de conteúdo exige `CO_GM` (o padrão do parâmetro `minRole` é `PLAYER`, suficiente para leitura). A UI para promover alguém a `CO_GM`/`PLAYER` (convites) ainda não existe — isso é Fase 9 — mas a checagem de papel já está pronta para quando existir. Visibilidade por conteúdo (`GM_ONLY`/`PLAYERS`/`PUBLIC`) chegou na Fase 1 como campo nas entidades de conteúdo (NPCs, Locais, Facções, Lore); ainda não há um "Player View" (Fase 9) que efetivamente filtre por ela — hoje o campo só é exibido como metadado.
 
 ## 10. Bots do Discord (preparação, não implementação)
 
@@ -174,12 +174,14 @@ Consequências assumidas por essa escolha, e como cada uma foi endereçada:
 
 ### 12.2 `CanonStatus` vs. `archived` — dois eixos independentes
 
-Toda entidade de conteúdo tem **dois** campos de estado, deliberadamente não fundidos em um só:
+Toda entidade de conteúdo (NPC/Local/Facção/Lore) tem **dois** campos de estado, deliberadamente não fundidos em um só:
 
-- `CanonStatus` (`DRAFT | CANON | DEPRECATED`) — o eixo **narrativo**: o quão "oficial" essa informação é dentro da campanha (um rascunho de NPC que ainda pode mudar, um NPC já estabelecido em jogo, ou algo que foi substituído pela narrativa e não vale mais).
-- `archived: boolean` — o eixo **organizacional/de UI**: está fora da visão principal (lista padrão não mostra), mas continua existindo e canônico.
+- `CanonStatus` (`DRAFT → PROPOSED → APPROVED → CANON`, mais `OBSOLETE`/`ARCHIVED` como saídas) — o eixo **narrativo**: o quão "oficial" essa informação é dentro da campanha, desde uma ideia ainda não compartilhada com a mesa até algo estabelecido em jogo, ou que deixou de valer.
+- `archived: boolean` — o eixo **organizacional/de UI**: está fora da visão principal (lista padrão não mostra), mas continua existindo e mantém seu `canonStatus`.
 
-São independentes porque um NPC pode ser `CANON` e `archived` (ex.: morreu na sessão passada — ainda é verdade estabelecida da campanha, só não precisa aparecer na lista do dia a dia) ou `DRAFT` e não-arquivado (uma ideia de NPC ainda sendo lapidada, mas ativa). Fundir os dois exigiria um enum com 6 estados (`DRAFT`, `DRAFT_ARCHIVED`, `CANON`, `CANON_ARCHIVED`, ...) para cobrir a mesma matriz, sem ganho.
+São independentes porque um NPC pode ser `CANON` e `archived` (ex.: morreu na sessão passada — ainda é verdade estabelecida da campanha, só não precisa aparecer na lista do dia a dia) ou `DRAFT` e não-arquivado (uma ideia de NPC ainda sendo lapidada, mas ativa). Fundir os dois exigiria dobrar o enum (uma variante arquivada de cada estágio narrativo) só para cobrir a mesma matriz, sem ganho — e ainda obrigaria a UI de "arquivar" a decidir um `canonStatus` novo, quando a ação do usuário não diz nada sobre o eixo narrativo.
+
+Ideias (`Idea`) não compartilham `CanonStatus` — têm o próprio `IdeaState` (`NEW → INTERESTING → DEVELOPING → USED`, ou `ARCHIVED`/`DISCARDED`), porque o ciclo de vida de uma ideia é sobre amadurecer até virar conteúdo de verdade (ou ser descartada), não sobre o quão canônica ela é — reaproveitar `CanonStatus` aqui misturaria dois conceitos que só coincidem por acaso terem o mesmo formato (enum de progressão).
 
 ### 12.3 Tags — por campanha, deduplicadas por slug
 
