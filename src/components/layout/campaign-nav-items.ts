@@ -4,10 +4,10 @@ import {
   CalendarCheck,
   Dices,
   GitBranch,
-  Image as ImageIcon,
   LayoutDashboard,
   Lightbulb,
   MapPin,
+  Music,
   Scroll,
   Search,
   Settings,
@@ -66,7 +66,7 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
   { key: "session", label: "Modo Sessão", icon: Swords, href: (id) => `/campaigns/${id}/session`, section: "Sessão" },
 
   { key: "game", label: "Jogo", icon: Dices, comingSoonPhase: "Fase 6", section: "Em breve" },
-  { key: "media", label: "Mídia", icon: ImageIcon, comingSoonPhase: "Fase 4", section: "Em breve" },
+  { key: "audio", label: "Music/SFX Board", icon: Music, href: (id) => `/campaigns/${id}/audio`, section: "Áudio" },
   { key: "tools", label: "Ferramentas", icon: Wrench, comingSoonPhase: "Fase 6", section: "Em breve" },
   { key: "system", label: "Sistema", icon: Settings2, comingSoonPhase: "Fase 9", section: "Em breve" },
 

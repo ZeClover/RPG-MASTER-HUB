@@ -2,7 +2,7 @@
 
 O sistema operacional para Mestres de RPG organizarem, prepararem e narrarem campanhas que duram meses ou anos.
 
-Este repositório está na **Fase 3 — Modo Sessão**: Dice Roller, Session Log, Combat Tracker, NPC rápido e Botão do pânico — com fila de escrita offline de verdade (funciona mesmo sem internet no meio da mesa) — construídos sobre a Fase 2 (Session Planner, Missões, Tramas, Consequências), a Fase 1 (NPCs, Locais, Facções, Lore, Idea Vault, Tags, Relacionamentos, Busca global, Command Palette) e a Fase 0 (autenticação, campanhas, layout, PWA). Veja [`ARCHITECTURE.md`](./ARCHITECTURE.md) para as decisões técnicas e o roadmap completo por fases.
+Este repositório está na **Fase 4 — Áudio**: Music/SFX Board e os dois bots do Discord (trilha sonora + efeitos sonoros, em `bot/` — veja `bot/README.md`) — construídos sobre a Fase 3 (Modo Sessão, Dice Roller, Session Log, Combat Tracker, NPC rápido, Botão do pânico, fila de escrita offline), a Fase 2 (Session Planner, Missões, Tramas, Consequências), a Fase 1 (NPCs, Locais, Facções, Lore, Idea Vault, Tags, Relacionamentos, Busca global, Command Palette) e a Fase 0 (autenticação, campanhas, layout, PWA). Veja [`ARCHITECTURE.md`](./ARCHITECTURE.md) para as decisões técnicas e o roadmap completo por fases.
 
 ## Stack
 
@@ -38,7 +38,11 @@ openssl rand -base64 32
 
 ## Storage de imagens
 
-Em desenvolvimento, uploads (ícone/banner/imagem de campanha) são gravados em `public/uploads` (git-ignorado). Em produção, defina `STORAGE_PROVIDER=vercel-blob` e `BLOB_READ_WRITE_TOKEN` para usar o Vercel Blob — a troca de provider não exige mudança de código, veja `src/lib/storage`.
+Em desenvolvimento, uploads (ícone/banner/imagem de campanha, e agora faixas de áudio) são gravados em `public/uploads` (git-ignorado). Em produção, defina `STORAGE_PROVIDER=vercel-blob` e `BLOB_READ_WRITE_TOKEN` para usar o Vercel Blob — a troca de provider não exige mudança de código, veja `src/lib/storage`.
+
+## Bots do Discord (Music/SFX Board)
+
+O Music/SFX Board (`/campaigns/[campaignId]/audio`) precisa dos dois bots do Discord rodando para tocar música/efeitos de verdade — eles são um projeto Node separado em `bot/`, não fazem parte deste app. Veja [`bot/README.md`](./bot/README.md) para configuração e execução; só é preciso rodá-los durante a sessão, não 24/7.
 
 ## Estrutura
 

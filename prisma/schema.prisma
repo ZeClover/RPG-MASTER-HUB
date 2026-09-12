@@ -111,13 +111,17 @@ model Campaign {
   tags          Tag[]
   relationships Relationship[]
 
-  sessionPlans      SessionPlan[]
-  scenes            Scene[]
-  quests            Quest[]
-  plotThreads       PlotThread[]
-  consequences      Consequence[]
-  sessionLogEntries SessionLogEntry[]
-  combatEncounters  CombatEncounter[]
+  sessionPlans       SessionPlan[]
+  scenes             Scene[]
+  quests             Quest[]
+  plotThreads        PlotThread[]
+  consequences       Consequence[]
+  sessionLogEntries  SessionLogEntry[]
+  combatEncounters   CombatEncounter[]
+  audioTracks        AudioTrack[]
+  sfxTriggerEvents   SfxTriggerEvent[]
+  discordLink        DiscordLink?
+  musicPlaybackState MusicPlaybackState?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -723,4 +727,83 @@ model Combatant {
 
   @@index([encounterId, order])
   @@map("combatants")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Fase 4 — Áudio (Music/SFX Board + bots do Discord)
+// ─────────────────────────────────────────────────────────────────────────
+
+enum AudioTrackCategory {
+  MUSIC
+  SFX
+}
+
+/// Um item do Music/SFX Board: cada faixa enviada já É o "preset" — um botão
+/// no board que o mestre aciona. Não existe um agrupamento "Preset" separado
+/// (ver ARCHITECTURE.md, seção 15).
+model AudioTrack {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name     String
+  category AudioTrackCategory
+  fileUrl  String
+  loop     Boolean            @default(true)
+
+  createdAt DateTime @default(now())
+
+  sfxTriggerEvents    SfxTriggerEvent[]
+  musicPlaybackStates MusicPlaybackState[]
+
+  @@index([campaignId, category])
+  @@map("audio_tracks")
+}
+
+/// Onde os dois bots devem entrar para esta campanha. Configurado manualmente
+/// pelo mestre (ids numéricos copiados do Discord) — sem OAuth "Entrar com
+/// Discord" para listar servidores automaticamente, fora de escopo desta fase.
+model DiscordLink {
+  id             String   @id @default(cuid())
+  campaignId     String   @unique
+  campaign       Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  guildId        String
+  voiceChannelId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("discord_links")
+}
+
+/// Estado contínuo do bot de trilha sonora — um registro por campanha,
+/// atualizado pelo mestre e lido (via polling) pelo processo do bot.
+model MusicPlaybackState {
+  id         String      @id @default(cuid())
+  campaignId String      @unique
+  campaign   Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  trackId    String?
+  track      AudioTrack? @relation(fields: [trackId], references: [id], onDelete: SetNull)
+  isPlaying  Boolean     @default(false)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("music_playback_states")
+}
+
+/// Fila de disparos do bot de efeitos sonoros — cada linha é um "toque uma
+/// vez"; o bot marca `processedAt` depois de tocar (evita tocar de novo se
+/// consultar a fila outra vez antes do próximo poll).
+model SfxTriggerEvent {
+  id         String     @id @default(cuid())
+  campaignId String
+  campaign   Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  trackId    String
+  track      AudioTrack @relation(fields: [trackId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([campaignId, processedAt])
+  @@map("sfx_trigger_events")
 }

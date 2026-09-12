@@ -4,14 +4,14 @@ Este documento registra as decisões técnicas da Fase 0 e o roadmap de fases. A
 
 ## 1. Arquitetura
 
-Aplicação **única** Next.js (App Router), não um monorepo. O motivo: os bots do Discord (Fase 4) precisam de um processo Node persistente, mas não existe código de bot ainda — criar um monorepo agora só para acomodar algo que não existe adicionaria complexidade sem benefício (ver "Bots" abaixo).
+O app Next.js (App Router) continua uma aplicação única — não um monorepo. Os dois bots do Discord (Fase 4) é que vivem fora dele: `bot/` é um projeto Node separado, com seu próprio `package.json`/`node_modules`, porque precisam de um processo persistente com conexão de voz, algo que a Vercel (funções serverless) não sustenta (ver seção 15.4).
 
 Dentro do app, o código se organiza em duas dimensões:
 
 - **`app/`** — apenas rotas. Layouts e páginas são finos: buscam sessão/dados via `modules/`, e delegam toda a lógica de domínio.
 - **`modules/<domínio>/<entidade>/`** — a lógica de negócio de verdade: `schemas.ts` (Zod), `actions.ts` (Server Actions), `queries.ts` (leituras). Mapeia diretamente para os domínios do briefing (CORE, CREATION, STORY, GAME, MEDIA, AUDIO, INTELLIGENCE, PLAYER).
 
-Até a Fase 0 só existia o módulo `core` (`auth`, `campaigns`, `permissions`). A Fase 1 introduziu o domínio `creation`: `modules/creation/<entidade>/` para cada tipo de conteúdo (NPCs, Locais, Facções, Lore, Ideias) mais dois módulos transversais que várias entidades compartilham (`tags`, `relationships`). A Fase 2 introduziu o domínio `preparation` (Sessões, Missões, Tramas, Consequências) — mapeando diretamente para o domínio PREP do briefing original, análogo em estrutura a `creation` mas com seu próprio conjunto de entidades e regras de negócio. Os domínios ainda não usados (GAME, MEDIA, AUDIO, INTELLIGENCE, PLAYER) continuam sem pasta — mesma regra da Fase 0, pastas vazias não têm valor.
+Até a Fase 0 só existia o módulo `core` (`auth`, `campaigns`, `permissions`). A Fase 1 introduziu o domínio `creation`: `modules/creation/<entidade>/` para cada tipo de conteúdo (NPCs, Locais, Facções, Lore, Ideias) mais dois módulos transversais que várias entidades compartilham (`tags`, `relationships`). A Fase 2 introduziu o domínio `preparation` (Sessões, Missões, Tramas, Consequências). A Fase 4 introduziu o domínio `audio` (Music/SFX Board — `modules/audio/`), mapeando para o domínio AUDIO do briefing. Os domínios ainda não usados (STORY/World Building, GAME avançado, INTELLIGENCE, PLAYER) continuam sem pasta — mesma regra da Fase 0, pastas vazias não têm valor.
 
 ## 2. Stack
 
@@ -50,9 +50,11 @@ src/
       session-plans/                       — list/new/[id] (Cenas+Checklist inline)/[id]/edit (Fase 2)
       quests/, plot-threads/, consequences/ — list/new/[id]/[id]/edit (CRUD completo, Fase 2)
       session/                             — Modo Sessão: dados, registro, combate (Fase 3, offline real)
+      audio/                                — Music/SFX Board (Fase 4)
     api/
       auth/[...nextauth]/                 — handlers do Auth.js
-      v1/uploads/                         — upload de imagens (autenticado)
+      v1/uploads/                         — upload de imagens e áudio (autenticado, mínimo CO_GM — seção 15.11)
+      v1/bot/music/, v1/bot/sfx/, v1/bot/sfx/ack/ — lidas pelos bots do Discord, autenticadas por secret (Fase 4)
     manifest.ts, offline/
   modules/
     core/
@@ -73,6 +75,8 @@ src/
     game/
       session-log/ — schemas, actions (upsert idempotente por clientId), queries (Fase 3)
       combat/      — schemas, actions (encontro + combatentes), queries (Fase 3)
+    audio/
+      schemas.ts, actions.ts, queries.ts — faixas, estado de reprodução de música, eventos de SFX, vínculo Discord (Fase 4)
   components/
     ui/            — primitivas (Button, Card, Dialog, DropdownMenu, Tooltip, Avatar, Select, Popover...)
     layout/        — topbar, sidebar de campanha, menu de usuário
@@ -86,6 +90,7 @@ src/
     session-plans/  — formulário de sessão, lista de cenas (com reordenação), checklist inline (Fase 2)
     session-mode/   — painéis do Modo Sessão: registro, combate, dados, NPC rápido, botão do pânico,
                       e `use-offline-sync.ts` (a ponte com a fila de escrita offline) (Fase 3)
+    audio/          — formulário de faixa, board de música/efeitos, formulário de vínculo do Discord (Fase 4)
   lib/
     db.ts          — client Prisma singleton
     auth.ts        — config do Auth.js
@@ -93,9 +98,12 @@ src/
     sync-store.ts  — estado de sincronização (Zustand), estendido na Fase 3 com contagem de escritas pendentes
     dice.ts         — parser/roller de notação de dados, puro (Fase 3)
     offline-queue.ts — fila de escrita offline em IndexedDB (Fase 3, ver seção 14.1)
+    bot-auth.ts      — autenticação por secret compartilhado + resolução de URL de arquivo para os bots (Fase 4)
     format.ts, utils.ts
   types/           — augmentations (next-auth) e tipos compartilhados
   proxy.ts         — Next 16 renomeou `middleware.ts` → `proxy.ts`; usado para guarda otimista de rotas
+bot/               — projeto Node separado (não faz parte do build do Next.js): os dois bots do Discord,
+                     seu próprio package.json/node_modules — ver seção 15.4 e bot/README.md
 ```
 
 ## 4. Modelo de dados (Fase 0)
@@ -163,6 +171,19 @@ Combatant        — filho direto de CombatEncounter (FK real): name, type (PC|N
                    mesmo motivo do `clientId` acima — ver seção 14.1
 ```
 
+### Modelo de dados (Fase 4)
+
+```
+AudioTrack          — campaignId, name, category (MUSIC|SFX), fileUrl, loop (default true) — cada
+                       faixa enviada já é o "preset" que aparece no board, sem tabela própria (15.1)
+DiscordLink         — campaignId @unique, guildId, voiceChannelId — preenchidos manualmente pelo
+                       mestre a partir do Modo Desenvolvedor do Discord, sem OAuth (seção 15.2)
+MusicPlaybackState  — campaignId @unique, trackId? (SetNull ao apagar a faixa), isPlaying — estado
+                       contínuo de "o que deveria estar tocando agora" (seção 15.3)
+SfxTriggerEvent     — campaignId, trackId (Cascade), processedAt? — log append-only de disparos,
+                       um por clique em "Tocar"; o bot confirma preenchendo processedAt (seção 15.3)
+```
+
 ## 5. Autenticação
 
 Auth.js v5, Credentials provider (email + senha, hash bcrypt), sessão **JWT** (obrigatório quando há Credentials provider — sessão em banco não é suportada nesse caso). Prisma Adapter conectado desde já, então adicionar um provider OAuth (ex. "Entrar com Discord", plausível dado que o Discord já faz parte do produto) no futuro é só configuração, sem migração de dados.
@@ -190,11 +211,11 @@ Os dados nunca ficam presos ao dispositivo: tudo passa pelo Postgres via Server 
 
 ## 9. Permissões
 
-Um único helper, `requireCampaignAccess(userId, campaignId, minRole?)`, usado por toda action/rota que toca dado de campanha — nunca a UI sozinha decide o que é permitido (seção 12.7 detalha o padrão de exclusão segura que depende disso). Na Fase 0 só o papel `OWNER` existia de fato; a partir da Fase 1 o ranking `OWNER > CO_GM > PLAYER` já é aplicado de verdade: toda criação/edição/exclusão de conteúdo exige `CO_GM` (o padrão do parâmetro `minRole` é `PLAYER`, suficiente para leitura). A UI para promover alguém a `CO_GM`/`PLAYER` (convites) ainda não existe — isso é Fase 9 — mas a checagem de papel já está pronta para quando existir. Visibilidade por conteúdo (`GM_ONLY`/`PLAYERS`/`PUBLIC`) chegou na Fase 1 como campo nas entidades de conteúdo (NPCs, Locais, Facções, Lore); ainda não há um "Player View" (Fase 9) que efetivamente filtre por ela — hoje o campo só é exibido como metadado.
+Um único helper, `requireCampaignAccess(userId, campaignId, minRole?)`, usado por toda action/rota que toca dado de campanha — nunca a UI sozinha decide o que é permitido (seção 12.7 detalha o padrão de exclusão segura que depende disso). Na Fase 0 só o papel `OWNER` existia de fato; a partir da Fase 1 o ranking `OWNER > CO_GM > PLAYER` já é aplicado de verdade: toda criação/edição/exclusão de conteúdo exige `CO_GM` (o padrão do parâmetro `minRole` é `PLAYER`, suficiente para leitura). A UI para promover alguém a `CO_GM`/`PLAYER` (convites) ainda não existe — isso é Fase 9 — mas a checagem de papel já está pronta para quando existir. Visibilidade por conteúdo (`GM_ONLY`/`PLAYERS`/`PUBLIC`) chegou na Fase 1 como campo nas entidades de conteúdo (NPCs, Locais, Facções, Lore); ainda não há um "Player View" (Fase 9) que efetivamente filtre por ela — hoje o campo só é exibido como metadado. A rota `/api/v1/uploads` exige `CO_GM` (não `OWNER`) para upload vinculado a campanha desde a Fase 4 — antes disso, um resquício da Fase 0 exigia `OWNER`, contradizendo o resto do modelo (ver seção 15.11).
 
-## 10. Bots do Discord (preparação, não implementação)
+## 10. Bots do Discord
 
-Nenhum código de bot nesta fase (é item de Fase 4). Arquitetura prevista: um processo Node separado e persistente (fora da Vercel — funções serverless não sustentam conexão de voz), rodando `discord.js`, autenticado contra a API do hub via um secret de serviço (rota futura `/api/v1/bot/*`, nunca via sessão de usuário). O token do Discord nunca passa perto do frontend.
+Dois processos Node separados (`bot/`, fora da Vercel — funções serverless não sustentam conexão de voz), um para trilha sonora contínua e um para efeitos sonoros avulsos, cada um autenticado como uma aplicação Discord própria (token/ID próprios) e ambos autenticados contra a API do hub via secret de serviço (`/api/v1/bot/*`, nunca via sessão de usuário — seção 15.5). O token do Discord nunca passa perto do frontend. Implementados na Fase 4 — detalhes de desenho em toda a seção 15 e em `bot/README.md`.
 
 ## 11. Decisões-chave desta fase
 
@@ -333,7 +354,56 @@ O Combat Tracker guarda um campo `initiative` por combatente e ordena por ele, m
 
 `quickCreateNpcAction` (NPC rápido) e o Botão do pânico foram deliberadamente deixados fora do sistema de fila offline. O Botão do pânico não tem motivo para entrar — é 100% local (arrays estáticos, `Math.random()`), nunca toca o servidor. Criar um NPC no meio da sessão é mais raro do que rolar dados ou ajustar HP (o caso de uso real: o mestre percisa nomear alguém que os jogadores encontraram, uma ou duas vezes por sessão, não a cada poucos segundos como uma rolagem) — o custo de tratar essa exceção (mostrar um erro pedindo para tentar de novo quando a conexão voltar) foi julgado menor que o custo de generalizar a fila para mais um tipo de operação, incluindo o id-gerado-no-cliente que isso exigiria para o NPC entrar depois no sistema de Tags/Relacionamentos sem conflito.
 
-## 15. Roadmap de fases
+## 15. Fase 4 — Decisões técnicas
+
+### 15.1 `AudioTrack` faz o papel de "preset" — sem tabela separada
+
+O roadmap da Fase 0 (seção 10) falava em "Presets" como conceito próprio, mas não havia requisito de um preset agrupar várias faixas ou guardar configuração além de "qual arquivo, de qual categoria, com ou sem loop". Criar uma tabela `Preset` que apontasse para um único `AudioTrack` seria uma indireção sem função: cada faixa enviada já É o botão que aparece no board. `AudioTrack` guarda `name`, `category` (`MUSIC`/`SFX`), `fileUrl` e `loop`, e isso basta para o board renderizar e para os bots tocarem. Se uma fase futura pedir presets reais (ex.: uma "cena" disparando várias faixas de uma vez), o conceito entra então, sobre o que já existe.
+
+### 15.2 `DiscordLink` por ID manual — sem OAuth "Login with Discord"
+
+Conectar a campanha a um servidor/canal de voz do Discord poderia ser feito com um fluxo OAuth completo (o mestre loga com a conta Discord, o hub lista servidores e canais reais via API). Isso foi deliberadamente trocado por dois campos de texto (`guildId`, `voiceChannelId`) que o mestre copia manualmente do Discord com o Modo Desenvolvedor ativado. Motivo: OAuth exigiria uma segunda aplicação Discord (ou escopos adicionais nas duas já criadas), telas de consentimento, refresh de token e uma camada de API do Discord só para listar servidores — complexidade real para economizar copiar-colar dois números que o mestre faz uma vez por campanha. O texto de ajuda no próprio formulário (`discord-link-form.tsx`) explica o passo a passo.
+
+### 15.3 `MusicPlaybackState` vs. `SfxTriggerEvent` — dois modelos porque são dois tipos de evento
+
+Música e efeito sonoro têm semânticas de reprodução opostas, e o schema reflete isso com dois modelos diferentes em vez de forçar um só:
+
+- **`MusicPlaybackState`** — uma linha por campanha (`campaignId @unique`), mutável: `trackId`/`isPlaying` descrevem "o que deveria estar tocando agora". É estado contínuo — o bot de música consulta e faz seu estado de conexão convergir para esse estado (entra no canal, troca de faixa, para), sem histórico.
+- **`SfxTriggerEvent`** — log **append-only**: cada clique em "Tocar" no board cria uma linha nova, com `processedAt` nulo até o bot confirmar que tocou (`processedAt: DateTime?`). Um efeito sonoro é "dispare isso uma vez", não um estado para convergir — não faria sentido um `upsert` sobrescrever o efeito anterior antes de ele ter sido reproduzido.
+
+### 15.4 Hub ↔ bots: polling, não push
+
+Os bots consultam o hub (`GET /api/v1/bot/music` a cada 4s, `GET /api/v1/bot/sfx` a cada 2s) em vez do hub empurrar eventos para eles. Escolhido porque só exige acesso de rede **de saída** a partir do processo do bot — nenhuma porta precisa ser aberta, nenhum webhook precisa ser exposto publicamente, o bot pode rodar atrás de NAT/firewall doméstico sem configuração extra. O custo (latência de até um intervalo de polling, no pior caso) é aceitável: 2-4 segundos de atraso para tocar um efeito sonoro ou trocar uma música não compromete a experiência de mesa.
+
+### 15.5 Autenticação dos bots: secret compartilhado, nunca sessão de usuário
+
+`BOT_SERVICE_SECRET` é comparado em `src/lib/bot-auth.ts` contra o header `Authorization: Bearer <secret>` — sem OAuth, sem JWT, sem cookie de sessão. Os bots são processos de infraestrutura confiáveis (não agem "como" um usuário específico, agem para todas as campanhas que tiverem `DiscordLink` configurado), então o modelo certo é o mesmo de um serviço interno falando com outro, não o de autenticação de usuário final — consistente com o que a seção 10 (Fase 0) já previa antes de qualquer código existir.
+
+### 15.6 Resolução de URL de arquivo entre provedores de storage
+
+`resolveFileUrl(origin, fileUrl)` (`src/lib/bot-auth.ts`) devolve `fileUrl` sem alteração se já for uma URL absoluta (`http(s)://...` — caso do Vercel Blob em produção) e monta `${origin}${fileUrl}` se for um caminho relativo (`/uploads/...` — caso do storage local em desenvolvimento). O `origin` vem de `new URL(request.url).origin`, ou seja, da própria requisição que o bot fez ao hub — nenhuma variável de ambiente nova precisou ser criada no lado do hub, e o bot nunca precisa saber qual provedor de storage está ativo.
+
+### 15.7 SFX: fila de um efeito por vez por campanha, sem mixagem real
+
+O bot de efeitos sonoros (`bot/sfx-bot.js`) tem uma fila (`queue: string[]`) por campanha: se um efeito já está tocando quando outro é disparado, o novo entra na fila e só toca quando o anterior termina — nunca os dois sobrepostos. Mixar múltiplos efeitos simultâneos exigiria decodificar e somar streams de áudio (ou várias conexões de voz simultâneas no mesmo canal, que o Discord não permite para um único bot), um escopo bem maior do que "o mestre clica e o som toca". Isso é um corte de escopo deliberado do MVP, não uma limitação técnica descoberta depois — para a maioria dos efeitos de mesa (porta rangendo, espada, trovão) o disparo é esporádico o bastante para a fila nunca ser perceptível.
+
+### 15.8 Bots rodam sob demanda, durante a sessão — não como serviço 24/7
+
+Ao contrário do que a seção 10 sugeria inicialmente ("processo Node separado e persistente"), a persistência não precisa significar "ligado o tempo todo": o mestre inicia os dois processos (`npm run music` / `npm run sfx`, na própria máquina ou onde preferir) antes de começar a jogar e encerra ao final da sessão. "Persistente" aqui quer dizer apenas "processo Node de longa duração enquanto está rodando" (mantém conexão de voz aberta), não "sempre ativo" — não há necessidade de hospedagem 24/7 (VPS, Railway, Fly.io) para o uso real do produto, embora continue sendo uma opção válida para quem preferir não depender de ligar o processo manualmente. `bot/README.md` documenta esse uso sob demanda como o caminho padrão.
+
+### 15.9 Segurança da cadeia de dependências: `@discordjs/opus` trocado por `opusscript`
+
+A primeira instalação de `bot/` com `@discordjs/opus` (bindings nativos, via `@discordjs/node-pre-gyp`) resultou em 3 vulnerabilidades no `npm audit` (2 altas, 1 crítica) — todas na cadeia de dependência de `tar` usada para baixar o binário pré-compilado durante a instalação, sem correção disponível mesmo na versão mais recente do pacote. Como `@discordjs/opus` era apenas uma de várias implementações de Opus intercambiáveis que `@discordjs/voice` sabe usar (detecção em tempo de execução, não uma dependência obrigatória), a correção foi trocá-lo por `opusscript` — implementação em JavaScript/WASM puro, sem etapa de build nativo. Resultado: 0 vulnerabilidades. `generateDependencyReport()` (função de diagnóstico do próprio `@discordjs/voice`) confirmou que a cadeia completa de áudio continua resolvendo corretamente (Opus via `opusscript`, criptografia via `libsodium-wrappers`, FFmpeg via `ffmpeg-static`, detectado automaticamente pelo `prism-media`).
+
+### 15.10 Limitação do ambiente de desenvolvimento: conectividade real do Discord nunca verificada
+
+A política de rede do sandbox onde este projeto foi desenvolvido bloqueia conexões de saída para `discord.com`. Isso significa que a conexão real ao Gateway e ao Voice do Discord **nunca pôde ser testada de dentro deste ambiente** — nem login do bot, nem entrada em canal de voz, nem reprodução de áudio de fato. A verificação desta fase ficou limitada ao que é possível sem rede: schema e queries do banco, lógica e autenticação das rotas `/api/v1/bot/*` (testadas via HTTP direto contra um servidor local, incluindo o ciclo completo disparo → fila pendente → confirmação), toda a interface web do Music/SFX Board (upload, tocar/pausar música, disparar efeito, excluir faixa, salvar vínculo do Discord), sintaxe dos dois scripts de bot (`node --check`) e verificação de que as chamadas de API do `@discordjs/voice` usadas (`createAudioResource` com string de URL, `joinVoiceChannel`, etc.) existem e têm a assinatura esperada nos `.d.ts` do pacote instalado. A conectividade real com um servidor Discord de verdade precisa ser confirmada manualmente, uma vez, em uma máquina com acesso à internet, antes do primeiro uso em mesa (ver `bot/README.md`).
+
+### 15.11 Bug pré-existente descoberto: rota de upload exigia `OWNER` para qualquer arquivo de campanha
+
+Ao testar o fluxo de upload de áudio com uma conta `CO_GM` (não dona da campanha) — necessário porque `createAudioTrackAction` já exigia apenas `CO_GM`, seguindo a convenção da seção 9 — o upload em si falhava com 403 antes mesmo de a action rodar. A causa: `src/app/api/v1/uploads/route.ts` checava `requireCampaignAccess(user.id, campaignId, "OWNER")` para qualquer upload vinculado a uma campanha, desde a Fase 0 — um resquício de quando só existia o papel `OWNER` de fato (seção 9). Isso nunca tinha sido pego porque os testes anteriores de upload (retratos de NPC, símbolos de Facção, etc.) sempre rodaram com a conta dona da campanha. Na prática, isso bloqueava qualquer `CO_GM` de enviar uma imagem ou um áudio para qualquer entidade que ele tivesse permissão de criar — uma contradição com o próprio modelo de permissões que todo o resto do app segue desde a Fase 1. Corrigido trocando o mínimo exigido para `CO_GM`, testado com uma conta `CO_GM` de verdade (login separado, sessão própria) confirmando que o upload e a criação da faixa completam com sucesso.
+
+## 16. Roadmap de fases
 
 | Fase | Escopo |
 | --- | --- |
@@ -341,7 +411,7 @@ O Combat Tracker guarda um campo `initiative` por combatente e ordena por ele, m
 | **1 — Wiki da campanha** ✅ | NPCs, Locais, Facções, Lore, Tags, Relacionamentos, Busca global, Command Palette, Idea Vault, Dashboard real |
 | **2 — Preparação** ✅ | Session Planner, Checklist, Scene Builder, Quests, Consequências, Plot Threads |
 | **3 — Modo Sessão** ✅ | Modo Sessão, Dice Roller, Session Log, Combat Tracker, Quick NPC, Panic Button — offline real prioritário aqui |
-| 4 — Áudio | Music/SFX Board, Presets, os dois bots do Discord |
+| **4 — Áudio** ✅ | Music/SFX Board, os dois bots do Discord (trilha sonora + efeitos) |
 | 5 — World Building | Timeline, Calendário, Relógios Narrativos, Family Tree, Mystery Board |
 | 6 — Game Tools | Monster/Boss/Item Forge, Power Builder, Loot Generator, Table Builder |
 | 7 — Inteligência da campanha | Campaign Brain avançado, Context Engine, Campaign Health, Content Graveyard |
