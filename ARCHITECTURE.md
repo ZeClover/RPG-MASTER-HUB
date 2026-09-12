@@ -11,7 +11,7 @@ Dentro do app, o código se organiza em duas dimensões:
 - **`app/`** — apenas rotas. Layouts e páginas são finos: buscam sessão/dados via `modules/`, e delegam toda a lógica de domínio.
 - **`modules/<domínio>/<entidade>/`** — a lógica de negócio de verdade: `schemas.ts` (Zod), `actions.ts` (Server Actions), `queries.ts` (leituras). Mapeia diretamente para os domínios do briefing (CORE, CREATION, STORY, GAME, MEDIA, AUDIO, INTELLIGENCE, PLAYER).
 
-Até a Fase 0 só existia o módulo `core` (`auth`, `campaigns`, `permissions`). A Fase 1 introduziu o domínio `creation`: `modules/creation/<entidade>/` para cada tipo de conteúdo (NPCs, Locais, Facções, Lore, Ideias) mais dois módulos transversais que várias entidades compartilham (`tags`, `relationships`). A Fase 2 introduziu o domínio `preparation` (Sessões, Missões, Tramas, Consequências). A Fase 4 introduziu o domínio `audio` (Music/SFX Board — `modules/audio/`), mapeando para o domínio AUDIO do briefing. Os domínios ainda não usados (STORY/World Building, GAME avançado, INTELLIGENCE, PLAYER) continuam sem pasta — mesma regra da Fase 0, pastas vazias não têm valor.
+Até a Fase 0 só existia o módulo `core` (`auth`, `campaigns`, `permissions`). A Fase 1 introduziu o domínio `creation`: `modules/creation/<entidade>/` para cada tipo de conteúdo (NPCs, Locais, Facções, Lore, Ideias) mais dois módulos transversais que várias entidades compartilham (`tags`, `relationships`). A Fase 2 introduziu o domínio `preparation` (Sessões, Missões, Tramas, Consequências). A Fase 4 introduziu o domínio `audio` (Music/SFX Board — `modules/audio/`), mapeando para o domínio AUDIO do briefing. A Fase 5 introduziu o domínio `worldbuilding` (Timeline, Calendário, Relógios Narrativos, Family Tree, Mystery Board — `modules/worldbuilding/<entidade>/`), mapeando para o domínio STORY/World Building do briefing. Os domínios ainda não usados (GAME avançado, INTELLIGENCE, PLAYER) continuam sem pasta — mesma regra da Fase 0, pastas vazias não têm valor.
 
 ## 2. Stack
 
@@ -51,6 +51,7 @@ src/
       quests/, plot-threads/, consequences/ — list/new/[id]/[id]/edit (CRUD completo, Fase 2)
       session/                             — Modo Sessão: dados, registro, combate (Fase 3, offline real)
       audio/                                — Music/SFX Board (Fase 4)
+      timeline/, clocks/, family-tree/, mysteries/ — World Building (Fase 5, Calendário embutido na Timeline)
     api/
       auth/[...nextauth]/                 — handlers do Auth.js
       v1/uploads/                         — upload de imagens e áudio (autenticado, mínimo CO_GM — seção 15.11)
@@ -77,6 +78,12 @@ src/
       combat/      — schemas, actions (encontro + combatentes), queries (Fase 3)
     audio/
       schemas.ts, actions.ts, queries.ts — faixas, estado de reprodução de música, eventos de SFX, vínculo Discord (Fase 4)
+    worldbuilding/
+      timeline/  — schemas, actions (com reordenação), queries de TimelineEvent (Fase 5)
+      calendar/  — schemas, actions (upsert), queries de CampaignCalendar — singleton por campanha (Fase 5)
+      clocks/    — schemas, actions (incrementar/decrementar), queries de NarrativeClock (Fase 5)
+      family-tree/ — schemas, actions de FamilyRelation, `tree.ts` (função pura que monta a árvore — Fase 5)
+      mysteries/ — schemas, actions (Mystery + `clue-actions.ts`), queries de Mystery/Clue (Fase 5)
   components/
     ui/            — primitivas (Button, Card, Dialog, DropdownMenu, Tooltip, Avatar, Select, Popover...)
     layout/        — topbar, sidebar de campanha, menu de usuário
@@ -91,6 +98,10 @@ src/
     session-mode/   — painéis do Modo Sessão: registro, combate, dados, NPC rápido, botão do pânico,
                       e `use-offline-sync.ts` (a ponte com a fila de escrita offline) (Fase 3)
     audio/          — formulário de faixa, board de música/efeitos, formulário de vínculo do Discord (Fase 4)
+    timeline/       — formulário de evento, lista cronológica com reordenação, widget de calendário (Fase 5)
+    clocks/         — formulário de relógio, card com face em `conic-gradient` e incrementar/decrementar (Fase 5)
+    family-tree/    — painel "Família" (NPC), seletor de NPC, diálogo de novo parentesco, árvore recursiva (Fase 5)
+    mysteries/      — formulário de mistério, lista de pistas com vínculo opcional a entidade (Fase 5)
   lib/
     db.ts          — client Prisma singleton
     auth.ts        — config do Auth.js
@@ -182,6 +193,26 @@ MusicPlaybackState  — campaignId @unique, trackId? (SetNull ao apagar a faixa)
                        contínuo de "o que deveria estar tocando agora" (seção 15.3)
 SfxTriggerEvent     — campaignId, trackId (Cascade), processedAt? — log append-only de disparos,
                        um por clique em "Tocar"; o bot confirma preenchendo processedAt (seção 15.3)
+```
+
+### Modelo de dados (Fase 5)
+
+```
+TimelineEvent, TimelineEventTag — evento narrativo: título/descrição, narrativeDate (texto livre, seção
+                       16.2), order (Int, reordenável — mesmo padrão de Scene.order), visibility/favorite/
+                       archived/tags; participa de Relacionamentos (RelatableEntityType.TIMELINE_EVENT)
+CampaignCalendar    — campaignId @unique (singleton, mesmo padrão de DiscordLink/MusicPlaybackState),
+                       currentDay Int, dayLabel String — corte de escopo deliberado (seção 16.2)
+NarrativeClock      — campaignId, título/descrição, segments Int, filled Int, favorite/archived — sem
+                       visibility/tags/Relacionamentos (ferramenta de acompanhamento do mestre, seção 16.2)
+FamilyRelationType  — enum PARENT_OF | SPOUSE_OF | SIBLING_OF
+FamilyRelation      — campaignId, npcAId/npcBId (FK reais para Npc, Cascade), relationType, notes? — tabela
+                       dedicada, não polimórfica (seção 16.3)
+Mystery, MysteryTag — título/descrição, status (OPEN|RESOLVED), visibility/favorite/archived/tags;
+                       participa de Relacionamentos (RelatableEntityType.MYSTERY)
+Clue                — filho direto de Mystery (FK real, Cascade, mesmo padrão de Scene/ChecklistItem):
+                       text/discovered/order, linkedEntityType?/linkedEntityId? (ponteiro polimórfico leve,
+                       resolvido por resolveEntityRefs — seção 16.4, não uma linha em Relationship)
 ```
 
 ## 5. Autenticação
@@ -403,7 +434,47 @@ A política de rede do sandbox onde este projeto foi desenvolvido bloqueia conex
 
 Ao testar o fluxo de upload de áudio com uma conta `CO_GM` (não dona da campanha) — necessário porque `createAudioTrackAction` já exigia apenas `CO_GM`, seguindo a convenção da seção 9 — o upload em si falhava com 403 antes mesmo de a action rodar. A causa: `src/app/api/v1/uploads/route.ts` checava `requireCampaignAccess(user.id, campaignId, "OWNER")` para qualquer upload vinculado a uma campanha, desde a Fase 0 — um resquício de quando só existia o papel `OWNER` de fato (seção 9). Isso nunca tinha sido pego porque os testes anteriores de upload (retratos de NPC, símbolos de Facção, etc.) sempre rodaram com a conta dona da campanha. Na prática, isso bloqueava qualquer `CO_GM` de enviar uma imagem ou um áudio para qualquer entidade que ele tivesse permissão de criar — uma contradição com o próprio modelo de permissões que todo o resto do app segue desde a Fase 1. Corrigido trocando o mínimo exigido para `CO_GM`, testado com uma conta `CO_GM` de verdade (login separado, sessão própria) confirmando que o upload e a criação da faixa completam com sucesso.
 
-## 16. Roadmap de fases
+## 16. Fase 5 — Decisões técnicas
+
+### 16.1 `RelatableEntityType` ganha TIMELINE_EVENT e MYSTERY — mesmo custo já previsto
+
+Como a seção 13.1 já documentou para Quest/PlotThread/Consequence na Fase 2, estender o sistema de Relacionamentos a um tipo de conteúdo novo continua sendo "mais um braço do mesmo `switch`": `TIMELINE_EVENT` e `MYSTERY` entraram no enum e ganharam os mesmos `case`s em `searchEntitiesByType`/`resolveEntityRefs` que os sete tipos anteriores já tinham. Timeline e Mystery ganharam esse tratamento porque as duas têm página de detalhe própria (o critério que a seção 13.1 já usava para decidir "entra ou não entra"); `NarrativeClock` e `FamilyRelation` deliberadamente ficaram de fora — ver 16.2 e 16.3.
+
+### 16.2 Calendário: contador simples embutido na Timeline, não um sistema de datas customizável
+
+O roadmap descrevia duas opções: um calendário customizável por campanha (nomes de meses/dias próprios do mundo de ficção) ou, como corte de escopo mais simples, um contador de "dia atual". Optamos pelo contador (`CampaignCalendar`: `currentDay`/`dayLabel`, singleton por campanha no mesmo padrão de `DiscordLink`/`MusicPlaybackState` da Fase 4) por dois motivos:
+
+- **Um calendário customizável é, na prática, uma segunda entidade de configuração por sistema de jogo** — nomes de meses, quantos dias tem cada um, quantos meses tem o ano, se existem semanas — e cada mesa de RPG usa um calendário de ficção diferente (ou nenhum, contando só "sessão 1, sessão 2..."). Modelar isso bem exigiria uma UI de configuração própria (criar/editar/reordenar meses) só para um recurso que a Timeline já cobre parcialmente com `narrativeDate` em texto livre — o mestre pode escrever "12 de Chuvamar, Terceira Era" ali sem o app precisar entender o que isso significa.
+- **Não existe uma página própria do calendário.** Em vez disso, `CampaignCalendarWidget` é um card no topo da página `/timeline` — a mesma filosofia da seção 15.1 (`AudioTrack` como "preset" sem tabela própria): o conceito é pequeno o bastante para não justificar uma rota/CRUD dedicados, e semanticamente pertence à Timeline mesmo (o roadmap já dizia "associado à Timeline"). Editar rótulo/dia é um diálogo simples; avançar/voltar um dia são dois botões que chamam `advanceCalendarDayAction` diretamente, sem formulário.
+
+Isso significa que, das 5 sub-features do roadmap, Calendário não ganhou um item de navegação próprio — está embutido dentro do item "Linha do Tempo". Julgamos isso mais honesto do que criar uma rota vazia só para preencher a lista de navegação.
+
+`NarrativeClock` também ficou fora do sistema de Relacionamentos e sem `visibility`/tags, pelo mesmo raciocínio da seção 13.5 (`SessionPlan` não tem `canonStatus`/`visibility`): um relógio narrativo é uma ferramenta de acompanhamento do mestre ("quanto falta para o culto terminar o ritual?"), não conteúdo compartilhável da wiki da campanha. CRUD completo (criar/editar/arquivar/excluir) mais os dois botões de incrementar/decrementar cobrem o requisito sem esse peso extra.
+
+### 16.3 Family Tree: tabela dedicada `FamilyRelation`, não o sistema genérico de Relacionamentos
+
+A mesma decisão de desenho da seção 12.1 (associação polimórfica vs. FK real) reapareceu aqui, com a resposta oposta. Opções consideradas:
+
+- **Reaproveitar `Relationship`** com `type` livre ("é pai de", "é cônjuge de"): zero schema novo, mas dois problemas reais. Primeiro, texto livre não dá para consultar de forma confiável — "todos os pais deste NPC" viraria um `LIKE` sobre uma string que o mestre poderia digitar de qualquer jeito ("é pai de", "pai de", "é o pai de"), quebrando a árvore visual. Segundo, `Relationship` não tem noção de direção *tipada*: hoje a UI decide o texto da seta (`outgoing`/`incoming`) olhando pra qual lado é `source`, mas isso não basta para calcular "quem são os avós" — precisaria de uma regra a mais em cima de texto livre.
+- **Tabela dedicada `FamilyRelation`** (escolhida): FK real para `Npc` dos dois lados (`npcAId`/`npcBId`) porque, ao contrário do caso da seção 12.1, os dois lados são **sempre** do mesmo tipo (NPC) — não existe "parentesco entre um NPC e uma Facção". Sem essa variação de tipo, a razão de ser da associação polimórfica desaparece, e a FK real dá integridade de banco de graça (`onDelete: Cascade`: apagar um NPC apaga os parentescos dele, nunca deixando uma referência solta). Um enum fechado (`FamilyRelationType`: `PARENT_OF`/`SPOUSE_OF`/`SIBLING_OF`) substitui o texto livre — a árvore em `tree.ts` sabe exatamente que aresta é uma relação de filiação (para desenhar a hierarquia) e que aresta é só uma anotação lateral (cônjuge/irmão).
+
+Consequência assumida: `PARENT_OF`/`SIBLING_OF`/`SPOUSE_OF` cobrem o pedido do roadmap ("pai de", "cônjuge de", "irmão de") mas não modelam parentescos mais distantes (tio, primo, sogro) — se isso for pedido no futuro, a resposta mais simples é derivar visualmente ("tio" = irmão de um dos pais) em vez de crescer o enum, já que esses são sempre combinações de PARENT_OF/SIBLING_OF/SPOUSE_OF existentes, não um tipo de aresta novo.
+
+`buildFamilyTrees` (`family-tree/tree.ts`) é uma função pura (sem acesso a banco) que monta a árvore a partir das linhas: raízes são NPCs sem um `PARENT_OF` apontando para eles; cônjuges e irmãos aparecem como anotação inline em cada nó, não como recursão. Limitação assumida e documentada no próprio código: quando um NPC tem dois pais registrados (sem uma relação de cônjuge entre eles), ele aparece pendurado embaixo de só um dos dois ramos, não dos dois ao mesmo tempo — um grafo genealógico "de verdade" (DAG com pais combinados) exigiria um algoritmo de layout bem mais complexo para o ganho visual que traria numa árvore de campanha de RPG, que normalmente não tem dezenas de gerações.
+
+A página dedicada `/family-tree` é **somente leitura** — adicionar/remover parentesco só acontece a partir do painel "Família" na página de cada NPC (mesmo padrão de Relacionamentos: não existe uma página global para *criar* relações, só para visualizá-las agrupadas por entidade).
+
+### 16.4 Clue → entidade: ponteiro polimórfico leve, não uma linha em `Relationship`
+
+Uma pista de Mistério pode opcionalmente apontar para um NPC/Local/Facção/etc. O roadmap pede isso "via Relacionamentos", mas uma pista (`Clue`) não tem página de detalhe própria — é sempre editada inline dentro do Mistério, o mesmo motivo pelo qual `Scene`/`ChecklistItem` ficaram fora de `RelatableEntityType` (seção 13.1). Sem página própria, não haveria destino para `getEntityHref` apontar do lado da pista, e um `Relationship` de verdade exige dois lados relacionáveis.
+
+A solução foi um meio-termo: `Clue.linkedEntityType`/`linkedEntityId` são um ponteiro polimórfico direto (mesmo par tipo+id do sistema de Relacionamentos), mas **sem** uma linha na tabela `Relationship` — resolvido por `resolveClueLinks` (`mysteries/queries.ts`), que reaproveita `resolveEntityRefs` (o mesmo resolvedor em lote por tipo que `listRelationshipsForEntity` usa) em vez de duplicar essa lógica. Isso dá o "via Relacionamentos" no sentido de reaproveitar a infraestrutura de resolução polimórfica, sem forçar uma pista a virar uma entidade relacionável de primeira classe que não tem para onde linkar de volta. O Mistério em si (que tem página própria) entra em `RelatableEntityType` normalmente — é ele, não cada pista, que pode aparecer como o "outro lado" de uma relação genérica (ex.: um NPC "é suspeito em" um Mistério).
+
+### 16.5 Reordenação de Timeline: mesmo padrão de troca de `order`, aceitando o mesmo limite já conhecido
+
+`moveTimelineEventAction` copia exatamente o desenho de `moveSceneAction` (seção 13.2): troca o campo `order` entre a linha e a vizinha dentro de uma `$transaction`, sem biblioteca de drag-and-drop. A diferença é o volume esperado — uma sessão tem poucas cenas, mas uma campanha de meses pode acumular dezenas de eventos históricos. Julgamos que mover um evento várias posições de uma vez (arrastar do fim para o início) ainda é raro o bastante no uso real (a maioria dos eventos é adicionada perto de onde deveria ficar cronologicamente) para não justificar ainda uma biblioteca de arrastar-e-soltar nesta fase — se isso se provar frustrante em uso real, um passo intermediário mais barato que uma lib de D&D seria um campo "mover para o topo/fim" antes de considerar arrastar de verdade.
+
+## 17. Roadmap de fases
 
 | Fase | Escopo |
 | --- | --- |
@@ -412,7 +483,7 @@ Ao testar o fluxo de upload de áudio com uma conta `CO_GM` (não dona da campan
 | **2 — Preparação** ✅ | Session Planner, Checklist, Scene Builder, Quests, Consequências, Plot Threads |
 | **3 — Modo Sessão** ✅ | Modo Sessão, Dice Roller, Session Log, Combat Tracker, Quick NPC, Panic Button — offline real prioritário aqui |
 | **4 — Áudio** ✅ | Music/SFX Board, os dois bots do Discord (trilha sonora + efeitos) |
-| 5 — World Building | Timeline, Calendário, Relógios Narrativos, Family Tree, Mystery Board |
+| **5 — World Building** ✅ | Timeline, Calendário, Relógios Narrativos, Family Tree, Mystery Board |
 | 6 — Game Tools | Monster/Boss/Item Forge, Power Builder, Loot Generator, Table Builder |
 | 7 — Inteligência da campanha | Campaign Brain avançado, Context Engine, Campaign Health, Content Graveyard |
 | 8 — IA | Lore Guardian, Canon Checker, Campaign Recall, Consequence Suggester (sempre copiloto, nunca autoridade) |

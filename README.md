@@ -2,7 +2,7 @@
 
 O sistema operacional para Mestres de RPG organizarem, prepararem e narrarem campanhas que duram meses ou anos.
 
-Este repositório está na **Fase 4 — Áudio**: Music/SFX Board e os dois bots do Discord (trilha sonora + efeitos sonoros, em `bot/` — veja `bot/README.md`) — construídos sobre a Fase 3 (Modo Sessão, Dice Roller, Session Log, Combat Tracker, NPC rápido, Botão do pânico, fila de escrita offline), a Fase 2 (Session Planner, Missões, Tramas, Consequências), a Fase 1 (NPCs, Locais, Facções, Lore, Idea Vault, Tags, Relacionamentos, Busca global, Command Palette) e a Fase 0 (autenticação, campanhas, layout, PWA). Veja [`ARCHITECTURE.md`](./ARCHITECTURE.md) para as decisões técnicas e o roadmap completo por fases.
+Este repositório está na **Fase 5 — World Building**: Linha do Tempo (com um contador simples de "dia atual" da campanha embutido), Relógios Narrativos (padrão Powered by the Apocalypse/Blades in the Dark), Family Tree (parentesco entre NPCs) e Mystery Board (mistérios com pistas descobríveis, opcionalmente vinculadas a NPCs/Locais/etc.) — construídos sobre a Fase 4 (Music/SFX Board e os dois bots do Discord, em `bot/` — veja `bot/README.md`), a Fase 3 (Modo Sessão, Dice Roller, Session Log, Combat Tracker, NPC rápido, Botão do pânico, fila de escrita offline), a Fase 2 (Session Planner, Missões, Tramas, Consequências), a Fase 1 (NPCs, Locais, Facções, Lore, Idea Vault, Tags, Relacionamentos, Busca global, Command Palette) e a Fase 0 (autenticação, campanhas, layout, PWA). Veja [`ARCHITECTURE.md`](./ARCHITECTURE.md) para as decisões técnicas e o roadmap completo por fases.
 
 ## Stack
 
