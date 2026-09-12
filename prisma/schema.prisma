@@ -111,11 +111,13 @@ model Campaign {
   tags          Tag[]
   relationships Relationship[]
 
-  sessionPlans SessionPlan[]
-  scenes       Scene[]
-  quests       Quest[]
-  plotThreads  PlotThread[]
-  consequences Consequence[]
+  sessionPlans      SessionPlan[]
+  scenes            Scene[]
+  quests            Quest[]
+  plotThreads       PlotThread[]
+  consequences      Consequence[]
+  sessionLogEntries SessionLogEntry[]
+  combatEncounters  CombatEncounter[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -489,8 +491,10 @@ model SessionPlan {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  scenes    Scene[]
-  checklist ChecklistItem[]
+  scenes           Scene[]
+  checklist        ChecklistItem[]
+  logEntries       SessionLogEntry[]
+  combatEncounters CombatEncounter[]
 
   @@index([campaignId, archived])
   @@index([campaignId, status])
@@ -640,4 +644,83 @@ model ConsequenceTag {
   @@id([consequenceId, tagId])
   @@index([tagId])
   @@map("consequence_tags")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Fase 3 — Modo Sessão
+// ─────────────────────────────────────────────────────────────────────────
+
+enum SessionLogEntryType {
+  NOTE
+  DICE_ROLL
+  COMBAT_EVENT
+}
+
+/// Registro cronológico do que acontece durante uma sessão ao vivo. `clientId`
+/// é gerado no navegador (não pelo banco) especificamente para suportar a
+/// fila de escrita offline: ao reenviar uma entrada que já pode ter sido
+/// criada antes de cair a conexão cair, o `@@unique` com `clientId` faz o
+/// reenvio ser idempotente (ver ARCHITECTURE.md, "Modo Sessão offline").
+model SessionLogEntry {
+  id            String       @id @default(cuid())
+  campaignId    String
+  campaign      Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sessionPlanId String?
+  sessionPlan   SessionPlan? @relation(fields: [sessionPlanId], references: [id], onDelete: SetNull)
+
+  type     SessionLogEntryType @default(NOTE)
+  content  String
+  clientId String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([campaignId, clientId])
+  @@index([campaignId, createdAt])
+  @@map("session_log_entries")
+}
+
+enum CombatantType {
+  PC
+  NPC
+}
+
+model CombatEncounter {
+  id            String       @id @default(cuid())
+  campaignId    String
+  campaign      Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sessionPlanId String?
+  sessionPlan   SessionPlan? @relation(fields: [sessionPlanId], references: [id], onDelete: SetNull)
+
+  name              String
+  round             Int       @default(1)
+  activeCombatantId String?
+  endedAt           DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  combatants Combatant[]
+
+  @@index([campaignId, endedAt])
+  @@map("combat_encounters")
+}
+
+model Combatant {
+  id          String          @id @default(cuid())
+  encounterId String
+  encounter   CombatEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+
+  name       String
+  type       CombatantType @default(NPC)
+  initiative Int           @default(0)
+  hpCurrent  Int?
+  hpMax      Int?
+  conditions String?
+  order      Int           @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([encounterId, order])
+  @@map("combatants")
 }

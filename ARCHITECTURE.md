@@ -49,6 +49,7 @@ src/
       search/                              — busca global em texto (Fase 1)
       session-plans/                       — list/new/[id] (Cenas+Checklist inline)/[id]/edit (Fase 2)
       quests/, plot-threads/, consequences/ — list/new/[id]/[id]/edit (CRUD completo, Fase 2)
+      session/                             — Modo Sessão: dados, registro, combate (Fase 3, offline real)
     api/
       auth/[...nextauth]/                 — handlers do Auth.js
       v1/uploads/                         — upload de imagens (autenticado)
@@ -64,27 +65,34 @@ src/
       npcs/, locations/, factions/, lore/, ideas/  — schemas, actions, queries de cada entidade (Fase 1)
       tags/          — slug/dedup, actions, queries (Fase 1)
       relationships/ — associação polimórfica entre entidades (Fase 1, ver seção 12.1; estendida na Fase 2
-                       para incluir Quest/PlotThread/Consequence — ver seção 14.1)
+                       para incluir Quest/PlotThread/Consequence — ver seção 13.1)
       wiki-filters.ts — tipo genérico `WikiListFilters<TStatus>` compartilhado (q/tag/status/favorite/archived)
     preparation/
       session-plans/ — schemas, actions (SessionPlan + `scene-actions.ts` + `checklist-actions.ts`), queries (Fase 2)
       quests/, plot-threads/, consequences/ — schemas, actions, queries de cada entidade (Fase 2)
+    game/
+      session-log/ — schemas, actions (upsert idempotente por clientId), queries (Fase 3)
+      combat/      — schemas, actions (encontro + combatentes), queries (Fase 3)
   components/
     ui/            — primitivas (Button, Card, Dialog, DropdownMenu, Tooltip, Avatar, Select, Popover...)
     layout/        — topbar, sidebar de campanha, menu de usuário
     campaigns/     — formulário de campanha, upload de imagem, card
     providers/     — QueryProvider, ConnectivityListener, ServiceWorkerRegister
     wiki/          — componentes reaproveitados por toda entidade de conteúdo (Fase 1, generalizado na Fase 2
-                     para não depender de `CanonStatus` — ver seção 14.4): tag picker, card/grid genéricos,
+                     para não depender de `CanonStatus` — ver seção 13.4): tag picker, card/grid genéricos,
                      painel de relacionamentos, command palette, markdown viewer
     npcs/, locations/, factions/, lore/, ideas/ — formulários e widgets específicos de cada entidade (Fase 1)
     quests/, plot-threads/, consequences/       — formulários específicos de cada entidade (Fase 2)
     session-plans/  — formulário de sessão, lista de cenas (com reordenação), checklist inline (Fase 2)
+    session-mode/   — painéis do Modo Sessão: registro, combate, dados, NPC rápido, botão do pânico,
+                      e `use-offline-sync.ts` (a ponte com a fila de escrita offline) (Fase 3)
   lib/
     db.ts          — client Prisma singleton
     auth.ts        — config do Auth.js
     storage/       — abstração de upload (local | Vercel Blob)
-    sync-store.ts  — estado de sincronização (Zustand)
+    sync-store.ts  — estado de sincronização (Zustand), estendido na Fase 3 com contagem de escritas pendentes
+    dice.ts         — parser/roller de notação de dados, puro (Fase 3)
+    offline-queue.ts — fila de escrita offline em IndexedDB (Fase 3, ver seção 14.1)
     format.ts, utils.ts
   types/           — augmentations (next-auth) e tipos compartilhados
   proxy.ts         — Next 16 renomeou `middleware.ts` → `proxy.ts`; usado para guarda otimista de rotas
@@ -128,18 +136,31 @@ Relationship                       — sourceType/sourceId + targetType/targetId
 ```
 SessionPlan   — título, sessionNumber, plannedDate, pitch, gmNotes, status (PLANNING|READY|DONE|
                 CANCELLED), favorite, archived. Sem canonStatus/visibility (é material de preparação
-                do mestre, não conteúdo compartilhável da wiki — ver seção 14.2)
-Scene         — filho direto de SessionPlan (FK real, não polimórfica — ver 14.1), com title/summary/
+                do mestre, não conteúdo compartilhável da wiki — ver seção 13.5)
+Scene         — filho direto de SessionPlan (FK real, não polimórfica — ver 13.2), com title/summary/
                 readAloud/goal/order/status (PLANNED|PLAYED|CUT) e favorite; sem página própria, sempre
                 editado inline na página da sessão
 ChecklistItem — filho direto de SessionPlan (FK real): label/done/order; sem página própria
 Quest         — título/description/objective/reward, status (NOT_STARTED|ACTIVE|COMPLETED|FAILED|
                 ABANDONED), visibility, favorite, archived, tags — participa do sistema de Relacionamentos
 PlotThread    — título/description, status (ACTIVE|DORMANT|RESOLVED|ABANDONED), importance (reaproveita
-                RelationshipImportance — ver 14.3), visibility, favorite, archived, tags — idem
+                RelationshipImportance — ver 13.3), visibility, favorite, archived, tags — idem
 Consequence   — título/trigger/description, status (PENDING|TRIGGERED|RESOLVED), visibility, favorite,
                 archived, tags — idem
 QuestTag, PlotThreadTag, ConsequenceTag — 3 novas junções 1:1 com Tag, mesmo padrão da Fase 1
+```
+
+### Modelo de dados (Fase 3)
+
+```
+SessionLogEntry  — campaignId, sessionPlanId opcional, type (NOTE|DICE_ROLL|COMBAT_EVENT), content,
+                   clientId opcional (gerado no navegador; @@unique([campaignId, clientId]) faz o
+                   reenvio da fila offline ser um upsert idempotente — ver seção 14.1)
+CombatEncounter  — campaignId, sessionPlanId opcional, name, round, activeCombatantId, endedAt
+                   (null = combate em andamento; “o encontro atual” é o mais recente com endedAt null)
+Combatant        — filho direto de CombatEncounter (FK real): name, type (PC|NPC), initiative,
+                   hpCurrent/hpMax, conditions, order. O id é gerado no CLIENTE (não pelo banco) pelo
+                   mesmo motivo do `clientId` acima — ver seção 14.1
 ```
 
 ## 5. Autenticação
@@ -161,11 +182,11 @@ A escolha é por `STORAGE_PROVIDER` (env var), com fallback automático para `ve
 
 ## 7. PWA
 
-`app/manifest.ts` (convenção nativa do App Router) + `public/sw.js` escrito à mão: cacheia uma página `/offline` no install, e no evento `fetch` só intercepta navegações (`request.mode === "navigate"`), tentando rede primeiro e caindo para `/offline` se falhar. Instalável em desktop/Android/iOS. Cache agressivo de dados de campanha para uso offline real é da Fase 3 (Modo Sessão) — a Fase 0 só entrega a fundação (manifest + SW + fallback), não decisões de cache por entidade que ainda não existem.
+`app/manifest.ts` (convenção nativa do App Router) + `public/sw.js` escrito à mão: cacheia uma página `/offline` no install, e no evento `fetch` intercepta navegações (`request.mode === "navigate"`). Duas estratégias diferentes, deliberadamente: para a maioria das rotas, rede primeiro e `/offline` se falhar (essas páginas são de preparação — usadas antes/depois da mesa, perder conexão nelas só significa recarregar depois). Para `/campaigns/*/session` (Modo Sessão, Fase 3), a estratégia é network-first-com-cache-de-snapshot: tenta a rede, e se falhar serve a ÚLTIMA versão em cache dessa página (não `/offline`) — reabrir a sessão com o estado de quando esteve online pela última vez é mais útil ao mestre no meio da mesa do que uma tela genérica de "sem conexão". Instalável em desktop/Android/iOS. Ver seção 14.1 para a discussão completa do porquê isso (e não um cache agressivo do app inteiro) é o desenho certo.
 
 ## 8. Sincronização
 
-Os dados nunca ficam presos ao dispositivo: tudo passa pelo Postgres via Server Actions/API, não por `localStorage`. `useSyncStore` (Zustand) guarda um status (`synced | saving | pending | offline | error`) exibido na topbar; hoje é alimentado apenas por `navigator.onLine` — fila de escrita offline e resolução de conflito (dispositivo A/B editando a mesma campanha) chegam com o Modo Sessão (Fase 3), que é onde a sincronização realmente importa. Não fingimos um status "salvo" que não reflete nada real.
+Os dados nunca ficam presos ao dispositivo: tudo passa pelo Postgres via Server Actions/API, não por `localStorage`. `useSyncStore` (Zustand) guarda um status (`synced | saving | pending | offline | error`) exibido na topbar, mais (desde a Fase 3) uma contagem de escritas pendentes. Até a Fase 2, era alimentado só por `navigator.onLine`. A Fase 3 (Modo Sessão) implementou a fila de escrita offline e a resolução de conflito prometidas aqui desde a Fase 0 — ver seção 14.1 para o desenho completo (fila em IndexedDB, ids gerados no cliente para reenvio idempotente, e por que "um dispositivo por vez" é a resolução de conflito certa para este produto, não CRDT/OT). Não fingimos um status "salvo" que não reflete nada real.
 
 ## 9. Permissões
 
@@ -276,14 +297,50 @@ Durante o teste da Fase 2, uma suíte end-to-end expôs um comportamento: exclui
 
 Reproduzido também com uma Facção da Fase 1 (não é uma regressão da Fase 2) — a causa é a interação entre o Router Cache do Next.js (client-side) e o `revalidatePath` chamado por uma action **anterior e não relacionada** (a criação do relacionamento, que revalida os caminhos das duas entidades envolvidas) com o `redirect()` de uma action **posterior** (a exclusão, que redireciona para a lista) — o destino do redirect aparenta reutilizar uma entrada de cache do roteador que não foi invalidada a tempo. A integridade dos dados nunca foi afetada (a exclusão em si, incluindo a limpeza transacional das relações, sempre aconteceu corretamente) — é puramente uma janela de exibição obsoleta no cliente. Documentado aqui como pendência de UX de baixo risco (seção "Pendências" do relatório da Fase 2); um tratamento completo exigiria trocar o `redirect()` do servidor por uma navegação client-side explícita (`router.refresh()` + navegação) em todas as actions de exclusão — adiado para não ampliar o escopo da Fase 2 além do que foi pedido.
 
-## 14. Roadmap de fases
+## 14. Fase 3 — Decisões técnicas
+
+### 14.1 Fila de escrita offline: desenho, o que ela garante e o que não garante
+
+Esta é a peça prometida desde a Fase 0 (seções 7 e 8) e a decisão técnica mais importante desta fase. O requisito é real: uma mesa de RPG acontece num lugar com internet ruim ou nenhuma, e o mestre não pode perder uma anotação de sessão ou uma atualização de HP no meio do combate só porque o wi-fi caiu.
+
+**O que foi construído:**
+
+- `src/lib/offline-queue.ts` — um único IndexedDB local (`rpg-master-hub-offline`, object store `pending-writes`), sem biblioteca externa (mesma filosofia da Fase 0 para o Service Worker: convenção nativa do navegador, zero dependência nova). Cada escrita pendente é `{ id, op, campaignId, payload, queuedAt }`.
+- `src/components/session-mode/use-offline-sync.ts` (`useOfflineSync`) — a ponte entre os painéis do Modo Sessão e a fila. Toda mutação passa por `queueOrRun(op, payload)`: se `navigator.onLine`, tenta a Server Action direto; se falhar por uma causa que parece falta de rede (`TypeError` de `fetch`, ou `navigator.onLine` já falso), cai para enfileirar no IndexedDB. Ao reconectar, ou periodicamente (a cada 4s, enquanto a fila não estiver vazia), tenta reenviar cada escrita em ordem.
+- Cada painel (`SessionLogPanel`, `CombatTrackerPanel`) aplica a mutação **otimisticamente** no estado local do React antes mesmo de saber se ela foi para o servidor ou para a fila — o mestre nunca espera uma resposta de rede para ver o dado rolado ou a nota anotada na tela, online ou offline.
+
+**O problema do id duplicado, e como foi resolvido:** a primeira versão gerava o id da entidade otimista no cliente (`crypto.randomUUID()`) e deixava o banco gerar seu próprio id (`cuid()`) na escrita real — dois ids diferentes para "a mesma" entidade. Isso quebrava qualquer mutação subsequente sobre aquele item (ex.: adicionar um combatente e, na sequência, ajustar o HP dele) porque o id local nunca existiu no banco. A correção: o **cliente** gera o id (`crypto.randomUUID()` para `Combatant`; um `clientId` separado para `SessionLogEntry`, que mantém seu próprio `id` de banco mas usa `@@unique([campaignId, clientId])` para que reenviar a mesma escrita — depois de já ter sido aplicada — vire um `upsert` sem duplicar) e o servidor usa **esse mesmo id** na criação (`db.combatant.create({ data: { id, ... } })`). Sem isso, o sistema simplesmente não funciona de forma confiável offline — é a peça que faz o resto do desenho funcionar.
+
+**Por que não confundir "sem rede" com "erro de aplicação":** a primeira versão tratava qualquer exceção de `performWrite` como sinal de "deve estar offline, enfileira para tentar de novo depois" — o que significava que um bug real (ex.: o problema do id acima, que gera um erro `P2025 - registro não encontrado` do Prisma) entrava num loop de retry infinito, silenciosamente, escondendo o bug atrás de um indicador "pendente" que nunca virava "sincronizado". A correção distingue os dois casos (`isLikelyNetworkError`, em `use-offline-sync.ts`): só erro de rede genuíno vai para a fila; qualquer outro erro é descartado da fila (não adianta reenviar o mesmo erro) e reportado via `console.error` + status `error` no indicador — honesto sobre o fato de que algo deu errado de verdade, em vez de fingir que é só uma questão de tempo.
+
+**Por que o evento `online` do navegador não é suficiente sozinho:** durante o desenvolvimento, o teste automatizado (que usa a emulação de rede do Chromium via Playwright) revelou que bloquear/desbloquear requisições de rede nem sempre dispara o evento `online`/`offline` do navegador de forma confiável — a emulação de rede e o valor de `navigator.onLine` são coisas diferentes, e podem divergir. Isso não é só uma peculiaridade de teste: uma conexão real "instável" (alterna entre funcionando e não, sem uma transição limpa) tem o mesmo problema. Por isso a fila também tenta descarregar periodicamente (a cada 4s), não só reagindo ao evento — o evento é a via rápida quando funciona, o polling é a rede de segurança.
+
+**O que este desenho deliberadamente NÃO faz** (e por quê isso é honesto, não incompleto): não há resolução de conflito entre dois dispositivos editando a mesma sessão ao mesmo tempo (CRDT, operational transform). A fila é local a um navegador; se o mesmo mestre abrir o Modo Sessão em dois dispositivos ao mesmo tempo enquanto ambos ficam offline, cada um tem sua própria fila e a ordem final de aplicação ao reconectar é "por dispositivo, na ordem em que reconectou" — sem merge inteligente. Isso é aceitável porque uma mesa de RPG tem **um mestre, rodando a sessão de um dispositivo por vez** — não é um documento colaborativo com múltiplos editores simultâneos. Construir CRDT para um cenário que não existe na prática seria complexidade sem benefício real, o oposto do que este projeto valoriza.
+
+### 14.2 Por que só o Modo Sessão ganhou cache agressivo no Service Worker
+
+A Fase 0 previu (seção 7) "cache agressivo de dados de campanha para uso offline real" chegando nesta fase, mas isso foi interpretado de forma **escopada**, não como "cachear o app inteiro": o Service Worker agora usa uma estratégia network-first-com-snapshot especificamente para `/campaigns/*/session` (tenta a rede, cai para a última versão em cache — não para `/offline` — se falhar). Todas as outras páginas (NPCs, Locais, Missões, Sessões de preparação...) continuam com a estratégia original da Fase 0 (rede ou `/offline`). A razão é a mesma que já apareceu nas Fases 1 e 2 para outras decisões de escopo: o Modo Sessão é a única tela pensada para ser usada **durante** a mesa, quando perder conexão é uma possibilidade real e cara; as demais são ferramentas de preparação, usadas antes/depois, onde "recarregue quando a internet voltar" é uma resposta honesta e suficiente.
+
+### 14.3 Combat Tracker: sem "iniciativa automática", sem rolagem embutida
+
+O Combat Tracker guarda um campo `initiative` por combatente e ordena por ele, mas quem calcula/rola a iniciativa é o mestre (usando o Dice Roller ao lado, se quiser) — o formulário de adicionar combatente só tem um campo numérico. Da mesma forma, `activeCombatantId` e `round` avançam por um botão "Próximo turno" que o mestre aciona manualmente, não por um timer ou lógica de sistema de jogo (D&D, Fabula Ultima, etc. têm regras de iniciativa muito diferentes entre si, e este produto não assume nenhum sistema específico — ver Fase 6, Game Tools, para onde regras específicas de sistema eventualmente pertencem, se um dia entrarem).
+
+### 14.4 Dice Roller: puro, sem persistência própria
+
+`src/lib/dice.ts` só faz parse de notação (`2d6+3`) e rola com `Math.random()` — nenhuma chamada de rede, nenhum estado, nenhuma dependência do Prisma. A rolagem em si não é uma entidade do banco; o que persiste é o **resultado formatado**, como uma `SessionLogEntry` do tipo `DICE_ROLL` (texto simples, ex. "2d6+3: [4, 6] +3 = 13"). Isso mantém a lógica de dados testável e reutilizável (funciona igual dentro ou fora do Modo Sessão, online ou offline) sem precisar desenhar uma tabela "DiceRoll" cujo único propósito seria guardar o mesmo texto de forma mais estruturada sem necessidade real hoje.
+
+### 14.5 NPC rápido e Botão do pânico: por que ficaram fora da fila offline
+
+`quickCreateNpcAction` (NPC rápido) e o Botão do pânico foram deliberadamente deixados fora do sistema de fila offline. O Botão do pânico não tem motivo para entrar — é 100% local (arrays estáticos, `Math.random()`), nunca toca o servidor. Criar um NPC no meio da sessão é mais raro do que rolar dados ou ajustar HP (o caso de uso real: o mestre percisa nomear alguém que os jogadores encontraram, uma ou duas vezes por sessão, não a cada poucos segundos como uma rolagem) — o custo de tratar essa exceção (mostrar um erro pedindo para tentar de novo quando a conexão voltar) foi julgado menor que o custo de generalizar a fila para mais um tipo de operação, incluindo o id-gerado-no-cliente que isso exigiria para o NPC entrar depois no sistema de Tags/Relacionamentos sem conflito.
+
+## 15. Roadmap de fases
 
 | Fase | Escopo |
 | --- | --- |
 | **0 — Fundação** ✅ | auth, campanhas, layout, PWA base, storage, sync base, permissões base |
 | **1 — Wiki da campanha** ✅ | NPCs, Locais, Facções, Lore, Tags, Relacionamentos, Busca global, Command Palette, Idea Vault, Dashboard real |
 | **2 — Preparação** ✅ | Session Planner, Checklist, Scene Builder, Quests, Consequências, Plot Threads |
-| 3 — Modo Sessão | Modo Sessão, Dice Roller, Session Log, Combat Tracker, Quick NPC, Panic Button — offline real prioritário aqui |
+| **3 — Modo Sessão** ✅ | Modo Sessão, Dice Roller, Session Log, Combat Tracker, Quick NPC, Panic Button — offline real prioritário aqui |
 | 4 — Áudio | Music/SFX Board, Presets, os dois bots do Discord |
 | 5 — World Building | Timeline, Calendário, Relógios Narrativos, Family Tree, Mystery Board |
 | 6 — Game Tools | Monster/Boss/Item Forge, Power Builder, Loot Generator, Table Builder |

@@ -67,6 +67,34 @@ async function syncNpcTags(npcId: string, tagIds: string[]) {
   }
 }
 
+/**
+ * Criação rápida usada pelo Modo Sessão (Fase 3): o mestre precisa nomear um
+ * NPC improvisado no meio da mesa sem sair da tela de sessão — diferente de
+ * `createNpcAction`, não redireciona, aceita só nome + uma nota opcional, e
+ * devolve o NPC criado para a UI decidir o que fazer (ex.: logar no Session
+ * Log). Deliberadamente não passa pela fila de escrita offline: criar NPC é
+ * raro no meio de uma sessão comparado a rolar dados ou atualizar HP, então
+ * o custo de tratar essa exceção (mostrar erro e pedir para tentar de novo
+ * quando a conexão voltar) é menor que o de mais um tipo de operação na fila.
+ */
+export async function quickCreateNpcAction(campaignId: string, name: string, note?: string) {
+  const user = await requireUser();
+  await requireCampaignAccess(user.id, campaignId, "CO_GM");
+
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    return { error: "Informe um nome." };
+  }
+
+  const npc = await db.npc.create({
+    data: { campaignId, name: trimmedName, gmNotes: note?.trim() || null },
+    select: { id: true, name: true },
+  });
+
+  revalidatePath(`/campaigns/${campaignId}/npcs`);
+  return { npc };
+}
+
 export async function createNpcAction(
   campaignId: string,
   _prevState: NpcFormState,

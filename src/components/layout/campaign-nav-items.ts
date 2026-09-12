@@ -63,7 +63,8 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
     section: "Preparação",
   },
 
-  { key: "session", label: "Sessão", icon: Swords, comingSoonPhase: "Fase 3", section: "Em breve" },
+  { key: "session", label: "Modo Sessão", icon: Swords, href: (id) => `/campaigns/${id}/session`, section: "Sessão" },
+
   { key: "game", label: "Jogo", icon: Dices, comingSoonPhase: "Fase 6", section: "Em breve" },
   { key: "media", label: "Mídia", icon: ImageIcon, comingSoonPhase: "Fase 4", section: "Em breve" },
   { key: "tools", label: "Ferramentas", icon: Wrench, comingSoonPhase: "Fase 6", section: "Em breve" },

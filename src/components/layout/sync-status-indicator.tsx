@@ -16,16 +16,21 @@ const STATUS_CONFIG: Record<SyncStatus, { label: string; icon: typeof Cloud; cla
 
 export function SyncStatusIndicator() {
   const status = useSyncStore((state) => state.status);
+  const pendingWrites = useSyncStore((state) => state.pendingWrites);
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;
+  const label =
+    status === "pending" && pendingWrites > 0
+      ? `${pendingWrites} ${pendingWrites === 1 ? "alteração pendente" : "alterações pendentes"}`
+      : config.label;
 
   return (
     <Tooltip>
       <TooltipTrigger className="flex items-center justify-center rounded-md p-2 hover:bg-surface-elevated">
         <Icon className={cn("size-4", config.className)} />
-        <span className="sr-only">{config.label}</span>
+        <span className="sr-only">{label}</span>
       </TooltipTrigger>
-      <TooltipContent>{config.label}</TooltipContent>
+      <TooltipContent>{label}</TooltipContent>
     </Tooltip>
   );
 }

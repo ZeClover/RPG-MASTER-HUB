@@ -2,7 +2,7 @@
 
 O sistema operacional para Mestres de RPG organizarem, prepararem e narrarem campanhas que duram meses ou anos.
 
-Este repositório está na **Fase 2 — Preparação**: Session Planner (com cenas reordenáveis e checklist), Missões, Tramas e Consequências — construídos sobre a Fase 1 (NPCs, Locais, Facções, Lore, Idea Vault, Tags, Relacionamentos, Busca global, Command Palette) e a Fase 0 (autenticação, campanhas, layout, PWA). Veja [`ARCHITECTURE.md`](./ARCHITECTURE.md) para as decisões técnicas e o roadmap completo por fases.
+Este repositório está na **Fase 3 — Modo Sessão**: Dice Roller, Session Log, Combat Tracker, NPC rápido e Botão do pânico — com fila de escrita offline de verdade (funciona mesmo sem internet no meio da mesa) — construídos sobre a Fase 2 (Session Planner, Missões, Tramas, Consequências), a Fase 1 (NPCs, Locais, Facções, Lore, Idea Vault, Tags, Relacionamentos, Busca global, Command Palette) e a Fase 0 (autenticação, campanhas, layout, PWA). Veja [`ARCHITECTURE.md`](./ARCHITECTURE.md) para as decisões técnicas e o roadmap completo por fases.
 
 ## Stack
 
