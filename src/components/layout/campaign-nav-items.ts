@@ -23,6 +23,7 @@ import {
   Settings2,
   Shield,
   ShieldAlert,
+  ShieldCheck,
   Skull,
   Sparkles,
   Swords,
@@ -129,6 +130,14 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
     icon: Archive,
     href: (id) => `/campaigns/${id}/graveyard`,
     section: "Inteligência",
+  },
+
+  {
+    key: "lore-guardian",
+    label: "Lore Guardian",
+    icon: ShieldCheck,
+    href: (id) => `/campaigns/${id}/lore-guardian`,
+    section: "Copiloto",
   },
 
   { key: "system", label: "Sistema", icon: Settings2, comingSoonPhase: "Fase 9", section: "Em breve" },
