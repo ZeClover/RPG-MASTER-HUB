@@ -3,6 +3,7 @@ import {
   BookOpen,
   CalendarCheck,
   Clock,
+  Dices,
   GitBranch,
   History,
   LayoutDashboard,
@@ -23,7 +24,6 @@ import {
   Tag,
   TreeDeciduous,
   Users,
-  Wrench,
 } from "lucide-react";
 
 export interface CampaignNavItem {
@@ -99,7 +99,9 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
   { key: "powers", label: "Poderes", icon: Sparkles, href: (id) => `/campaigns/${id}/powers`, section: "Jogo" },
 
   { key: "audio", label: "Music/SFX Board", icon: Music, href: (id) => `/campaigns/${id}/audio`, section: "Áudio" },
-  { key: "tools", label: "Ferramentas", icon: Wrench, comingSoonPhase: "Fase 6", section: "Em breve" },
+
+  { key: "tables", label: "Tabelas", icon: Dices, href: (id) => `/campaigns/${id}/tables`, section: "Ferramentas" },
+
   { key: "system", label: "Sistema", icon: Settings2, comingSoonPhase: "Fase 9", section: "Em breve" },
 
   { key: "settings", label: "Configurações", icon: Settings, href: (id) => `/campaigns/${id}/settings` },
