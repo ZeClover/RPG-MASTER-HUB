@@ -20,7 +20,9 @@ function rawEntries(formData: FormData) {
   return {
     name: formData.get("name"),
     imageUrl: formData.get("imageUrl"),
-    isBoss: formData.get("isBoss"),
+    // Checkbox desmarcado manda `formData.get` retornar `null`, não `undefined` — `z.string().optional()`
+    // só aceita o segundo (ver ARCHITECTURE.md, seção 18.5, bug pré-existente descoberto na Fase 7).
+    isBoss: formData.get("isBoss") || undefined,
     description: formData.get("description"),
     canonStatus: formData.get("canonStatus"),
     visibility: formData.get("visibility"),

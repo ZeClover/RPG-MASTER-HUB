@@ -38,7 +38,9 @@ export async function createAudioTrackAction(
     name: formData.get("name"),
     category: formData.get("category"),
     fileUrl: formData.get("fileUrl"),
-    loop: formData.get("loop"),
+    // Checkbox desmarcado manda `formData.get` retornar `null`, não `undefined` — `z.string().optional()`
+    // só aceita o segundo (bug pré-existente descoberto na Fase 7, ver ARCHITECTURE.md, seção 18.5).
+    loop: formData.get("loop") || undefined,
   });
 
   if (!parsed.success) {
