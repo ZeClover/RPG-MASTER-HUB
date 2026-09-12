@@ -13,6 +13,8 @@ import { WikiListToolbar } from "@/components/wiki/wiki-list-toolbar";
 import { WikiEntityGrid } from "@/components/wiki/wiki-entity-grid";
 import { EmptyState } from "@/components/wiki/empty-state";
 import { CANON_STATUS_OPTIONS } from "@/components/wiki/status-config";
+import { CanonStatusBadge } from "@/components/wiki/canon-status-badge";
+import { VisibilityBadge } from "@/components/wiki/visibility-badge";
 
 export const metadata: Metadata = { title: "Locais" };
 
@@ -55,8 +57,12 @@ export default async function LocationsPage({ params, searchParams }: LocationsP
     name: location.name,
     imageUrl: location.imageUrl,
     excerpt: location.description,
-    canonStatus: location.canonStatus,
-    visibility: location.visibility,
+    statusBadges: (
+      <>
+        <CanonStatusBadge status={location.canonStatus} />
+        <VisibilityBadge visibility={location.visibility} />
+      </>
+    ),
     favorite: location.favorite,
     meta: [location.locationType, location.parent ? `Em ${location.parent.name}` : null].filter(Boolean).join(" · ") || null,
     tags: location.tags.map((entry) => entry.tag),

@@ -17,6 +17,9 @@ interface RawRows {
   factions: { id: string; name: string; updatedAt: Date }[];
   lorePages: { id: string; title: string; updatedAt: Date }[];
   ideas: { id: string; title: string; updatedAt: Date }[];
+  quests: { id: string; title: string; updatedAt: Date }[];
+  plotThreads: { id: string; title: string; updatedAt: Date }[];
+  consequences: { id: string; title: string; updatedAt: Date }[];
 }
 
 function toRefs(campaignId: string, rows: RawRows): DashboardEntityRef[] {
@@ -56,6 +59,27 @@ function toRefs(campaignId: string, rows: RawRows): DashboardEntityRef[] {
       href: `/campaigns/${campaignId}/ideas`,
       updatedAt: row.updatedAt,
     })),
+    ...rows.quests.map((row) => ({
+      type: "QUEST" as const,
+      id: row.id,
+      name: row.title,
+      href: `/campaigns/${campaignId}/quests/${row.id}`,
+      updatedAt: row.updatedAt,
+    })),
+    ...rows.plotThreads.map((row) => ({
+      type: "PLOT_THREAD" as const,
+      id: row.id,
+      name: row.title,
+      href: `/campaigns/${campaignId}/plot-threads/${row.id}`,
+      updatedAt: row.updatedAt,
+    })),
+    ...rows.consequences.map((row) => ({
+      type: "CONSEQUENCE" as const,
+      id: row.id,
+      name: row.title,
+      href: `/campaigns/${campaignId}/consequences/${row.id}`,
+      updatedAt: row.updatedAt,
+    })),
   ];
 }
 
@@ -63,15 +87,18 @@ async function fetchAcrossEntities(campaignId: string, limit: number, favoriteOn
   const where = { campaignId, archived: false, favorite: favoriteOnly ? true : undefined };
   const orderBy = { updatedAt: "desc" as const };
 
-  const [npcs, locations, factions, lorePages, ideas] = await Promise.all([
+  const [npcs, locations, factions, lorePages, ideas, quests, plotThreads, consequences] = await Promise.all([
     db.npc.findMany({ where, orderBy, take: limit, select: { id: true, name: true, updatedAt: true } }),
     db.location.findMany({ where, orderBy, take: limit, select: { id: true, name: true, updatedAt: true } }),
     db.faction.findMany({ where, orderBy, take: limit, select: { id: true, name: true, updatedAt: true } }),
     db.lorePage.findMany({ where, orderBy, take: limit, select: { id: true, title: true, updatedAt: true } }),
     db.idea.findMany({ where, orderBy, take: limit, select: { id: true, title: true, updatedAt: true } }),
+    db.quest.findMany({ where, orderBy, take: limit, select: { id: true, title: true, updatedAt: true } }),
+    db.plotThread.findMany({ where, orderBy, take: limit, select: { id: true, title: true, updatedAt: true } }),
+    db.consequence.findMany({ where, orderBy, take: limit, select: { id: true, title: true, updatedAt: true } }),
   ]);
 
-  return { npcs, locations, factions, lorePages, ideas };
+  return { npcs, locations, factions, lorePages, ideas, quests, plotThreads, consequences };
 }
 
 export async function listRecentEntities(campaignId: string, limit = 6): Promise<DashboardEntityRef[]> {

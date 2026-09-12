@@ -1,10 +1,8 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { Star } from "lucide-react";
 
-import type { CanonStatus, Visibility } from "@/generated/prisma/client";
 import { Card } from "@/components/ui/card";
-import { CanonStatusBadge } from "@/components/wiki/canon-status-badge";
-import { VisibilityBadge } from "@/components/wiki/visibility-badge";
 
 export interface WikiEntitySummary {
   id: string;
@@ -12,8 +10,9 @@ export interface WikiEntitySummary {
   name: string;
   imageUrl: string | null;
   excerpt: string | null;
-  canonStatus: CanonStatus;
-  visibility: Visibility;
+  /** Badge(s) de status — cada domínio tem seu próprio enum (CanonStatus, QuestStatus, ...),
+   * então o card não conhece o tipo concreto: quem monta a lista decide o que renderizar aqui. */
+  statusBadges: ReactNode;
   favorite: boolean;
   meta?: string | null;
   tags: { id: string; name: string; color: string | null }[];
@@ -44,10 +43,7 @@ export function WikiEntityCard({ entity }: { entity: WikiEntitySummary }) {
 
       {entity.excerpt ? <p className="line-clamp-2 text-xs text-muted-foreground">{entity.excerpt}</p> : null}
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        <CanonStatusBadge status={entity.canonStatus} />
-        <VisibilityBadge visibility={entity.visibility} />
-      </div>
+      <div className="flex flex-wrap items-center gap-1.5">{entity.statusBadges}</div>
     </Card>
   );
 }

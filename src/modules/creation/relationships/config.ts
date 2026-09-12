@@ -1,4 +1,4 @@
-import { BookOpen, MapPin, Shield, Users, type LucideIcon } from "lucide-react";
+import { BookOpen, Scroll, ShieldAlert, MapPin, Shield, Users, type LucideIcon } from "lucide-react";
 
 import type { RelatableEntityType } from "@/generated/prisma/client";
 
@@ -7,6 +7,9 @@ export const ENTITY_TYPE_LABELS: Record<RelatableEntityType, string> = {
   LOCATION: "Local",
   FACTION: "Facção",
   LORE_PAGE: "Lore",
+  QUEST: "Missão",
+  PLOT_THREAD: "Trama",
+  CONSEQUENCE: "Consequência",
 };
 
 export const ENTITY_TYPE_LABELS_PLURAL: Record<RelatableEntityType, string> = {
@@ -14,6 +17,9 @@ export const ENTITY_TYPE_LABELS_PLURAL: Record<RelatableEntityType, string> = {
   LOCATION: "Locais",
   FACTION: "Facções",
   LORE_PAGE: "Lore",
+  QUEST: "Missões",
+  PLOT_THREAD: "Tramas",
+  CONSEQUENCE: "Consequências",
 };
 
 export const ENTITY_TYPE_ICONS: Record<RelatableEntityType, LucideIcon> = {
@@ -21,6 +27,9 @@ export const ENTITY_TYPE_ICONS: Record<RelatableEntityType, LucideIcon> = {
   LOCATION: MapPin,
   FACTION: Shield,
   LORE_PAGE: BookOpen,
+  QUEST: Scroll,
+  PLOT_THREAD: Scroll,
+  CONSEQUENCE: ShieldAlert,
 };
 
 export const ENTITY_TYPE_PATH: Record<RelatableEntityType, string> = {
@@ -28,6 +37,9 @@ export const ENTITY_TYPE_PATH: Record<RelatableEntityType, string> = {
   LOCATION: "locations",
   FACTION: "factions",
   LORE_PAGE: "lore",
+  QUEST: "quests",
+  PLOT_THREAD: "plot-threads",
+  CONSEQUENCE: "consequences",
 };
 
 export const ENTITY_TYPE_OPTIONS = Object.entries(ENTITY_TYPE_LABELS) as [RelatableEntityType, string][];

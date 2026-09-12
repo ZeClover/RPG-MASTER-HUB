@@ -11,7 +11,7 @@ Dentro do app, o código se organiza em duas dimensões:
 - **`app/`** — apenas rotas. Layouts e páginas são finos: buscam sessão/dados via `modules/`, e delegam toda a lógica de domínio.
 - **`modules/<domínio>/<entidade>/`** — a lógica de negócio de verdade: `schemas.ts` (Zod), `actions.ts` (Server Actions), `queries.ts` (leituras). Mapeia diretamente para os domínios do briefing (CORE, CREATION, STORY, GAME, MEDIA, AUDIO, INTELLIGENCE, PLAYER).
 
-Até a Fase 0 só existia o módulo `core` (`auth`, `campaigns`, `permissions`). A Fase 1 introduziu o domínio `creation`: `modules/creation/<entidade>/` para cada tipo de conteúdo (NPCs, Locais, Facções, Lore, Ideias) mais dois módulos transversais que várias entidades compartilham (`tags`, `relationships`). Os domínios ainda não usados (STORY, GAME, MEDIA, AUDIO, INTELLIGENCE, PLAYER) continuam sem pasta — mesma regra da Fase 0, pastas vazias não têm valor.
+Até a Fase 0 só existia o módulo `core` (`auth`, `campaigns`, `permissions`). A Fase 1 introduziu o domínio `creation`: `modules/creation/<entidade>/` para cada tipo de conteúdo (NPCs, Locais, Facções, Lore, Ideias) mais dois módulos transversais que várias entidades compartilham (`tags`, `relationships`). A Fase 2 introduziu o domínio `preparation` (Sessões, Missões, Tramas, Consequências) — mapeando diretamente para o domínio PREP do briefing original, análogo em estrutura a `creation` mas com seu próprio conjunto de entidades e regras de negócio. Os domínios ainda não usados (GAME, MEDIA, AUDIO, INTELLIGENCE, PLAYER) continuam sem pasta — mesma regra da Fase 0, pastas vazias não têm valor.
 
 ## 2. Stack
 
@@ -47,6 +47,8 @@ src/
       ideas/                               — página única de captura rápida (Fase 1)
       tags/                                — gestão de tags da campanha (Fase 1)
       search/                              — busca global em texto (Fase 1)
+      session-plans/                       — list/new/[id] (Cenas+Checklist inline)/[id]/edit (Fase 2)
+      quests/, plot-threads/, consequences/ — list/new/[id]/[id]/edit (CRUD completo, Fase 2)
     api/
       auth/[...nextauth]/                 — handlers do Auth.js
       v1/uploads/                         — upload de imagens (autenticado)
@@ -56,22 +58,28 @@ src/
       auth/        — schemas, actions (register/login/logout), sessão
       campaigns/   — schemas, actions, queries
       permissions/ — requireCampaignAccess (único ponto de checagem de papel)
-      search/      — busca global (Fase 1): queries cross-entidade + action
-      dashboard/   — queries agregadas do dashboard (Fase 1)
+      search/      — busca global (Fase 1, estendida na Fase 2): queries cross-entidade + action
+      dashboard/   — queries agregadas do dashboard (Fase 1, estendida na Fase 2)
     creation/
       npcs/, locations/, factions/, lore/, ideas/  — schemas, actions, queries de cada entidade (Fase 1)
       tags/          — slug/dedup, actions, queries (Fase 1)
-      relationships/ — associação polimórfica entre entidades (Fase 1, ver seção 13)
-      wiki-filters.ts — tipo `WikiListFilters` compartilhado (q/tag/status/favorite/archived)
+      relationships/ — associação polimórfica entre entidades (Fase 1, ver seção 12.1; estendida na Fase 2
+                       para incluir Quest/PlotThread/Consequence — ver seção 14.1)
+      wiki-filters.ts — tipo genérico `WikiListFilters<TStatus>` compartilhado (q/tag/status/favorite/archived)
+    preparation/
+      session-plans/ — schemas, actions (SessionPlan + `scene-actions.ts` + `checklist-actions.ts`), queries (Fase 2)
+      quests/, plot-threads/, consequences/ — schemas, actions, queries de cada entidade (Fase 2)
   components/
     ui/            — primitivas (Button, Card, Dialog, DropdownMenu, Tooltip, Avatar, Select, Popover...)
     layout/        — topbar, sidebar de campanha, menu de usuário
     campaigns/     — formulário de campanha, upload de imagem, card
     providers/     — QueryProvider, ConnectivityListener, ServiceWorkerRegister
-    wiki/          — componentes reaproveitados por todas as entidades de conteúdo (Fase 1): badges de
-                     status/visibilidade, tag picker, card/grid genéricos, painel de relacionamentos,
-                     command palette, markdown viewer
+    wiki/          — componentes reaproveitados por toda entidade de conteúdo (Fase 1, generalizado na Fase 2
+                     para não depender de `CanonStatus` — ver seção 14.4): tag picker, card/grid genéricos,
+                     painel de relacionamentos, command palette, markdown viewer
     npcs/, locations/, factions/, lore/, ideas/ — formulários e widgets específicos de cada entidade (Fase 1)
+    quests/, plot-threads/, consequences/       — formulários específicos de cada entidade (Fase 2)
+    session-plans/  — formulário de sessão, lista de cenas (com reordenação), checklist inline (Fase 2)
   lib/
     db.ts          — client Prisma singleton
     auth.ts        — config do Auth.js
@@ -110,8 +118,28 @@ Idea                                — captura rápida; só título é obrigat�
 Tag, NpcTag, LocationTag,
 FactionTag, LorePageTag, IdeaTag   — tag por campanha (slug único) + 5 junções 1:1 por tipo (seção 12.3)
 Relationship                       — sourceType/sourceId + targetType/targetId (RelatableEntityType:
-                                      NPC|LOCATION|FACTION|LORE_PAGE) + type/description/importance/
+                                      NPC|LOCATION|FACTION|LORE_PAGE|QUEST|PLOT_THREAD|CONSEQUENCE, os
+                                      três últimos chegaram na Fase 2) + type/description/importance/
                                       visibility; sem FK de banco (associação polimórfica, seção 12.1)
+```
+
+### Modelo de dados (Fase 2)
+
+```
+SessionPlan   — título, sessionNumber, plannedDate, pitch, gmNotes, status (PLANNING|READY|DONE|
+                CANCELLED), favorite, archived. Sem canonStatus/visibility (é material de preparação
+                do mestre, não conteúdo compartilhável da wiki — ver seção 14.2)
+Scene         — filho direto de SessionPlan (FK real, não polimórfica — ver 14.1), com title/summary/
+                readAloud/goal/order/status (PLANNED|PLAYED|CUT) e favorite; sem página própria, sempre
+                editado inline na página da sessão
+ChecklistItem — filho direto de SessionPlan (FK real): label/done/order; sem página própria
+Quest         — título/description/objective/reward, status (NOT_STARTED|ACTIVE|COMPLETED|FAILED|
+                ABANDONED), visibility, favorite, archived, tags — participa do sistema de Relacionamentos
+PlotThread    — título/description, status (ACTIVE|DORMANT|RESOLVED|ABANDONED), importance (reaproveita
+                RelationshipImportance — ver 14.3), visibility, favorite, archived, tags — idem
+Consequence   — título/trigger/description, status (PENDING|TRIGGERED|RESOLVED), visibility, favorite,
+                archived, tags — idem
+QuestTag, PlotThreadTag, ConsequenceTag — 3 novas junções 1:1 com Tag, mesmo padrão da Fase 1
 ```
 
 ## 5. Autenticação
@@ -214,13 +242,47 @@ O Command Palette escuta `keydown` global (`Ctrl+K`/`Cmd+K`) via `useEffect` num
 
 Toda exclusão de entidade de conteúdo segue o mesmo contrato: (1) a UI sempre pede confirmação explícita (`ConfirmDialog`, nunca clique único), (2) a action de exclusão nunca apaga conteúdo não relacionado — o único efeito colateral automático é limpar `Relationship`s que apontam para a entidade (12.1) — e (3) quando a exclusão não é segura por outro motivo (ex. Local com filhos, 12.4), a action retorna `{ error }` para a UI mostrar, em vez de deixar o Postgres estourar uma constraint como erro genérico 500.
 
-## 13. Roadmap de fases
+## 13. Fase 2 — Decisões técnicas
+
+### 13.1 Quest/PlotThread/Consequence entram no sistema de Relacionamentos; Scene/ChecklistItem/SessionPlan não
+
+A Fase 1 já previa (ARCHITECTURE.md, seção 12.1) que estender `RelatableEntityType` seria "o custo esperado para plugar um novo tipo de conteúdo" — a Fase 2 é a primeira vez que isso acontece de verdade. `QUEST`, `PLOT_THREAD` e `CONSEQUENCE` foram adicionados ao enum e ganharam os mesmos 4 `case`s em `relationships/queries.ts` (`searchEntitiesByType`/`resolveEntityRefs`) que NPC/Local/Facção/Lore já tinham — nenhuma mudança estrutural no sistema de relacionamentos em si, só mais braços do mesmo `switch`. Isso valida a decisão original: o custo de adicionar um tipo novo foi mesmo pequeno e localizado.
+
+`Scene` deliberadamente **não** entrou em `RelatableEntityType`, por um motivo prático, não filosófico: toda entidade relacionável precisa de uma página de detalhe própria para `getEntityHref` apontar (é para lá que o clique em "Ordem do Crepúsculo → traiu → Franz" leva). Cenas não têm página própria — são sempre editadas inline dentro da página da sua `SessionPlan` (seção 13.2) — então não haveria um destino de link sensato. Se cenas precisarem de relações com NPCs/Locais no futuro, a solução mais simples é dar a elas uma página própria primeiro (o que hoje não se justifica, dado seu papel de item de lista dentro de uma sessão) e só então estendê-las ao sistema polimórfico. `SessionPlan` e `ChecklistItem` ficaram de fora pelo mesmo motivo — e, no caso do `ChecklistItem`, também porque um item de checklist ("preparar mapa da cidade") não é o tipo de coisa que faz sentido "se relacionar" com um NPC.
+
+### 13.2 Cenas e Checklist são filhos diretos de `SessionPlan` (FK real), não polimórficos
+
+Diferente das Relações (12.1), a associação `SessionPlan` → `Scene`/`ChecklistItem` é 1-para-muitos com um tipo de pai **fixo** (uma cena sempre pertence a exatamente uma sessão, nunca a um NPC ou Local) — o caso clássico onde uma FK direta do Prisma é a ferramenta certa, e usar o sistema polimórfico aqui seria complexidade sem benefício (a lição inversa da 12.1: nem toda associação 1-para-muitos precisa do tratamento genérico, só as que de fato variam de tipo). `onDelete: Cascade` em ambas as tabelas: apagar uma `SessionPlan` apaga suas cenas e itens de checklist automaticamente — e isso é seguro porque cenas/checklist não têm existência própria fora do contexto da sessão (ao contrário de Relacionamentos, que apontam para entidades que sobrevivem à exclusão de qualquer lado específico).
+
+Reordenar cenas usa um inteiro `order` simples com uma ação "mover para cima/para baixo" que **troca** o `order` da cena com a do vizinho dentro de uma `$transaction` — não uma biblioteca de drag-and-drop. Mesma filosofia da Fase 1 para o editor de Lore (12.5): a lista de cenas de uma sessão tipicamente tem poucos itens (uma sessão real raramente planeja mais de 5–8 cenas), então trocar de posição com dois cliques resolve o caso de uso real sem a complexidade de estado/acessibilidade de um drag-and-drop.
+
+### 13.3 `PlotThread.importance` reaproveita `RelationshipImportance`
+
+Em vez de criar um enum novo (`PlotThreadImportance` ou similar) apenas para "prioridade de uma trama", a Fase 2 reaproveita o `RelationshipImportance` (`LOW|MEDIUM|HIGH`) que a Fase 1 já criou para o campo `importance` de um `Relationship`. O conceito — "o quão importante isso é" — é genuinamente o mesmo em ambos os contextos, e o enum já tinha exatamente 3 valores com os rótulos certos (`RELATIONSHIP_IMPORTANCE_LABELS`, em `relationships/config.ts`, é reaproveitado como está). Criar um enum novo idêntico só para não ter uma dependência de nome cruzando módulos teria sido exatamente o tipo de abstração-por-precaução que o projeto evita.
+
+### 13.4 `WikiEntityCard`/`WikiListFilters` generalizados para múltiplos enums de status
+
+Todas as entidades da Fase 1 compartilham os mesmos dois enums de estado (`CanonStatus`, `Visibility`) — por isso `WikiEntityCard` (Fase 1) tinha esses dois campos com tipo fixo. As entidades de Preparação **não** compartilham `CanonStatus` (cada uma tem seu próprio ciclo de vida: `QuestStatus`, `PlotThreadStatus`, `ConsequenceStatus`, `SessionPlanStatus`, `SceneStatus` — ver 13.5) e não fazia sentido forçá-las a ter um `canonStatus` só para caber no componente antigo.
+
+A correção foi generalizar em vez de duplicar: `WikiEntityCard` passou a receber um slot `statusBadges: ReactNode` em vez de campos `canonStatus`/`visibility` tipados — quem monta a lista decide o que renderizar ali (`<CanonStatusBadge/>` para NPCs, um `<Badge>` com `QUEST_STATUS_BADGE_VARIANT` para Missões, etc.). Da mesma forma, `WikiListFilters` virou `WikiListFilters<TStatus = CanonStatus>` — o parâmetro genérico deixa o tipo do filtro de status correto para cada domínio (`WikiListFilters<QuestStatus>`) sem duplicar a interface inteira, e o valor padrão mantém todo o código da Fase 1 compilando sem alteração. As 4 páginas de lista da Fase 1 (NPCs/Locais/Facções/Lore) foram ajustadas para montar `statusBadges` explicitamente — um custo pequeno e único, pago uma vez, que deixa o componente pronto para qualquer enum de status futuro (Fases 5+ certamente trarão mais).
+
+### 13.5 `SessionPlanStatus`/`SceneStatus` não reaproveitam `CanonStatus`
+
+Pelo mesmo raciocínio da seção 12.2 (Ideias têm seu próprio `IdeaState` em vez de `CanonStatus`): uma sessão progride de "planejando" para "pronta" para "concluída" — um ciclo de vida sobre **quando** algo acontece na mesa, não sobre o quão canônica a informação é. `CanonStatus` (`DRAFT → CANON`) responde "isso já é verdade estabelecida da campanha?", uma pergunta que não se aplica a uma sessão ou cena. Cada entidade de Preparação ganhou o enum que descreve seu próprio ciclo de vida real, em vez de forçar tudo pelo mesmo enum genérico só por conveniência de reuso.
+
+### 13.6 Bug pré-existente descoberto: cache do roteador do Next.js pode mostrar dado obsoleto por um instante após excluir uma entidade que tinha uma relação
+
+Durante o teste da Fase 2, uma suíte end-to-end expôs um comportamento: excluir uma entidade que **tinha** um `Relationship` associado e, logo em seguida, seguir o redirect da própria action de exclusão para a lista — a lista, por um instante, ainda mostra a entidade excluída (embora ela já não exista mais no banco, confirmado via query direta). Qualquer navegação ou reload subsequente mostra o estado correto imediatamente.
+
+Reproduzido também com uma Facção da Fase 1 (não é uma regressão da Fase 2) — a causa é a interação entre o Router Cache do Next.js (client-side) e o `revalidatePath` chamado por uma action **anterior e não relacionada** (a criação do relacionamento, que revalida os caminhos das duas entidades envolvidas) com o `redirect()` de uma action **posterior** (a exclusão, que redireciona para a lista) — o destino do redirect aparenta reutilizar uma entrada de cache do roteador que não foi invalidada a tempo. A integridade dos dados nunca foi afetada (a exclusão em si, incluindo a limpeza transacional das relações, sempre aconteceu corretamente) — é puramente uma janela de exibição obsoleta no cliente. Documentado aqui como pendência de UX de baixo risco (seção "Pendências" do relatório da Fase 2); um tratamento completo exigiria trocar o `redirect()` do servidor por uma navegação client-side explícita (`router.refresh()` + navegação) em todas as actions de exclusão — adiado para não ampliar o escopo da Fase 2 além do que foi pedido.
+
+## 14. Roadmap de fases
 
 | Fase | Escopo |
 | --- | --- |
 | **0 — Fundação** ✅ | auth, campanhas, layout, PWA base, storage, sync base, permissões base |
 | **1 — Wiki da campanha** ✅ | NPCs, Locais, Facções, Lore, Tags, Relacionamentos, Busca global, Command Palette, Idea Vault, Dashboard real |
-| 2 — Preparação | Session Planner, Checklist, Scene Builder, Quests, Consequências, Plot Threads |
+| **2 — Preparação** ✅ | Session Planner, Checklist, Scene Builder, Quests, Consequências, Plot Threads |
 | 3 — Modo Sessão | Modo Sessão, Dice Roller, Session Log, Combat Tracker, Quick NPC, Panic Button — offline real prioritário aqui |
 | 4 — Áudio | Music/SFX Board, Presets, os dois bots do Discord |
 | 5 — World Building | Timeline, Calendário, Relógios Narrativos, Family Tree, Mystery Board |

@@ -1,4 +1,13 @@
-import type { CanonStatus, IdeaState, Visibility } from "@/generated/prisma/client";
+import type {
+  CanonStatus,
+  ConsequenceStatus,
+  IdeaState,
+  PlotThreadStatus,
+  QuestStatus,
+  SceneStatus,
+  SessionPlanStatus,
+  Visibility,
+} from "@/generated/prisma/client";
 import type { BadgeProps } from "@/components/ui/badge";
 
 export const CANON_STATUS_LABELS: Record<CanonStatus, string> = {
@@ -48,3 +57,81 @@ export const IDEA_STATE_BADGE_VARIANT: Record<IdeaState, NonNullable<BadgeProps[
 };
 
 export const IDEA_STATE_OPTIONS = Object.entries(IDEA_STATE_LABELS) as [IdeaState, string][];
+
+export const QUEST_STATUS_LABELS: Record<QuestStatus, string> = {
+  NOT_STARTED: "Não iniciada",
+  ACTIVE: "Ativa",
+  COMPLETED: "Concluída",
+  FAILED: "Falhou",
+  ABANDONED: "Abandonada",
+};
+
+export const QUEST_STATUS_BADGE_VARIANT: Record<QuestStatus, NonNullable<BadgeProps["variant"]>> = {
+  NOT_STARTED: "outline",
+  ACTIVE: "warning",
+  COMPLETED: "success",
+  FAILED: "destructive",
+  ABANDONED: "outline",
+};
+
+export const QUEST_STATUS_OPTIONS = Object.entries(QUEST_STATUS_LABELS) as [QuestStatus, string][];
+
+export const PLOT_THREAD_STATUS_LABELS: Record<PlotThreadStatus, string> = {
+  ACTIVE: "Ativa",
+  DORMANT: "Dormente",
+  RESOLVED: "Resolvida",
+  ABANDONED: "Abandonada",
+};
+
+export const PLOT_THREAD_STATUS_BADGE_VARIANT: Record<PlotThreadStatus, NonNullable<BadgeProps["variant"]>> = {
+  ACTIVE: "warning",
+  DORMANT: "outline",
+  RESOLVED: "success",
+  ABANDONED: "outline",
+};
+
+export const PLOT_THREAD_STATUS_OPTIONS = Object.entries(PLOT_THREAD_STATUS_LABELS) as [PlotThreadStatus, string][];
+
+export const CONSEQUENCE_STATUS_LABELS: Record<ConsequenceStatus, string> = {
+  PENDING: "Pendente",
+  TRIGGERED: "Disparada",
+  RESOLVED: "Resolvida",
+};
+
+export const CONSEQUENCE_STATUS_BADGE_VARIANT: Record<ConsequenceStatus, NonNullable<BadgeProps["variant"]>> = {
+  PENDING: "outline",
+  TRIGGERED: "warning",
+  RESOLVED: "success",
+};
+
+export const CONSEQUENCE_STATUS_OPTIONS = Object.entries(CONSEQUENCE_STATUS_LABELS) as [ConsequenceStatus, string][];
+
+export const SESSION_PLAN_STATUS_LABELS: Record<SessionPlanStatus, string> = {
+  PLANNING: "Planejando",
+  READY: "Pronta",
+  DONE: "Concluída",
+  CANCELLED: "Cancelada",
+};
+
+export const SESSION_PLAN_STATUS_BADGE_VARIANT: Record<SessionPlanStatus, NonNullable<BadgeProps["variant"]>> = {
+  PLANNING: "outline",
+  READY: "warning",
+  DONE: "success",
+  CANCELLED: "outline",
+};
+
+export const SESSION_PLAN_STATUS_OPTIONS = Object.entries(SESSION_PLAN_STATUS_LABELS) as [SessionPlanStatus, string][];
+
+export const SCENE_STATUS_LABELS: Record<SceneStatus, string> = {
+  PLANNED: "Planejada",
+  PLAYED: "Jogada",
+  CUT: "Cortada",
+};
+
+export const SCENE_STATUS_BADGE_VARIANT: Record<SceneStatus, NonNullable<BadgeProps["variant"]>> = {
+  PLANNED: "outline",
+  PLAYED: "success",
+  CUT: "outline",
+};
+
+export const SCENE_STATUS_OPTIONS = Object.entries(SCENE_STATUS_LABELS) as [SceneStatus, string][];

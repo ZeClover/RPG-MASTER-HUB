@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, Lightbulb, MapPin, Shield, Users } from "lucide-react";
+import { BookOpen, CalendarCheck, GitBranch, Lightbulb, MapPin, Scroll, Shield, ShieldAlert, Users } from "lucide-react";
 
 import type { SearchResult } from "@/modules/core/search/queries";
 import { searchCampaignAction } from "@/modules/core/search/actions";
@@ -22,6 +22,15 @@ function quickActions(campaignId: string) {
     { key: "new-faction", label: "Criar Facção", icon: Shield, href: `/campaigns/${campaignId}/factions/new` },
     { key: "new-lore", label: "Criar Lore", icon: BookOpen, href: `/campaigns/${campaignId}/lore/new` },
     { key: "new-idea", label: "Criar Ideia", icon: Lightbulb, href: `/campaigns/${campaignId}/ideas` },
+    { key: "new-session-plan", label: "Nova Sessão", icon: CalendarCheck, href: `/campaigns/${campaignId}/session-plans/new` },
+    { key: "new-quest", label: "Criar Missão", icon: Scroll, href: `/campaigns/${campaignId}/quests/new` },
+    { key: "new-plot-thread", label: "Criar Trama", icon: GitBranch, href: `/campaigns/${campaignId}/plot-threads/new` },
+    {
+      key: "new-consequence",
+      label: "Criar Consequência",
+      icon: ShieldAlert,
+      href: `/campaigns/${campaignId}/consequences/new`,
+    },
   ];
 }
 

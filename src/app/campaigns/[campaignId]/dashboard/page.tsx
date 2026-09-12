@@ -1,7 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BookOpen, Brain, Dices, Lightbulb, MapPin, ScrollText, Settings, Shield, Users } from "lucide-react";
+import {
+  BookOpen,
+  Brain,
+  CalendarCheck,
+  Dices,
+  GitBranch,
+  Lightbulb,
+  MapPin,
+  Scroll,
+  Settings,
+  Shield,
+  ShieldAlert,
+  Users,
+} from "lucide-react";
 
 import { requireUser } from "@/modules/core/auth/session";
 import { getCampaignForUser, countCampaignMembers } from "@/modules/core/campaigns/queries";
@@ -11,6 +24,10 @@ import { countLocations } from "@/modules/creation/locations/queries";
 import { countFactions } from "@/modules/creation/factions/queries";
 import { countLorePages } from "@/modules/creation/lore/queries";
 import { countIdeas } from "@/modules/creation/ideas/queries";
+import { countSessionPlans } from "@/modules/preparation/session-plans/queries";
+import { countQuests } from "@/modules/preparation/quests/queries";
+import { countPlotThreads } from "@/modules/preparation/plot-threads/queries";
+import { countConsequences } from "@/modules/preparation/consequences/queries";
 import { listFavoriteEntities, listRecentEntities } from "@/modules/core/dashboard/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -21,7 +38,6 @@ import { formatDateTime, formatRelativeTime } from "@/lib/format";
 export const metadata: Metadata = { title: "Dashboard" };
 
 const COMING_SOON_ACTIONS = [
-  { label: "Criar Missão", icon: ScrollText, phase: "Fase 2" },
   { label: "Rolar Dados", icon: Dices, phase: "Fase 3" },
   { label: "Abrir Modo Sessão", icon: BookOpen, phase: "Fase 3" },
 ];
@@ -42,17 +58,33 @@ export default async function CampaignDashboardPage({ params }: DashboardPagePro
     throw error;
   }
 
-  const [memberCount, npcCount, locationCount, factionCount, loreCount, ideaCount, recent, favorites] =
-    await Promise.all([
-      countCampaignMembers(campaignId),
-      countNpcs(campaignId),
-      countLocations(campaignId),
-      countFactions(campaignId),
-      countLorePages(campaignId),
-      countIdeas(campaignId),
-      listRecentEntities(campaignId, 6),
-      listFavoriteEntities(campaignId, 6),
-    ]);
+  const [
+    memberCount,
+    npcCount,
+    locationCount,
+    factionCount,
+    loreCount,
+    ideaCount,
+    sessionPlanCount,
+    questCount,
+    plotThreadCount,
+    consequenceCount,
+    recent,
+    favorites,
+  ] = await Promise.all([
+    countCampaignMembers(campaignId),
+    countNpcs(campaignId),
+    countLocations(campaignId),
+    countFactions(campaignId),
+    countLorePages(campaignId),
+    countIdeas(campaignId),
+    countSessionPlans(campaignId),
+    countQuests(campaignId),
+    countPlotThreads(campaignId),
+    countConsequences(campaignId),
+    listRecentEntities(campaignId, 6),
+    listFavoriteEntities(campaignId, 6),
+  ]);
 
   const contentCounts = [
     { label: "NPCs", count: npcCount, href: `/campaigns/${campaignId}/npcs`, icon: Users },
@@ -60,6 +92,15 @@ export default async function CampaignDashboardPage({ params }: DashboardPagePro
     { label: "Facções", count: factionCount, href: `/campaigns/${campaignId}/factions`, icon: Shield },
     { label: "Lore", count: loreCount, href: `/campaigns/${campaignId}/lore`, icon: BookOpen },
     { label: "Ideias", count: ideaCount, href: `/campaigns/${campaignId}/ideas`, icon: Lightbulb },
+    { label: "Sessões", count: sessionPlanCount, href: `/campaigns/${campaignId}/session-plans`, icon: CalendarCheck },
+    { label: "Missões", count: questCount, href: `/campaigns/${campaignId}/quests`, icon: Scroll },
+    { label: "Tramas", count: plotThreadCount, href: `/campaigns/${campaignId}/plot-threads`, icon: GitBranch },
+    {
+      label: "Consequências",
+      count: consequenceCount,
+      href: `/campaigns/${campaignId}/consequences`,
+      icon: ShieldAlert,
+    },
   ];
 
   return (
@@ -79,7 +120,7 @@ export default async function CampaignDashboardPage({ params }: DashboardPagePro
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {contentCounts.map((item) => (
           <Link key={item.label} href={item.href}>
             <Card className="p-4 transition-colors hover:border-primary/50">
@@ -169,6 +210,26 @@ export default async function CampaignDashboardPage({ params }: DashboardPagePro
           <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
             <Link href={`/campaigns/${campaignId}/ideas`}>
               <Lightbulb className="size-4" /> Nova Ideia
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
+            <Link href={`/campaigns/${campaignId}/session-plans/new`}>
+              <CalendarCheck className="size-4" /> Nova Sessão
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
+            <Link href={`/campaigns/${campaignId}/quests/new`}>
+              <Scroll className="size-4" /> Criar Missão
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
+            <Link href={`/campaigns/${campaignId}/plot-threads/new`}>
+              <GitBranch className="size-4" /> Criar Trama
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
+            <Link href={`/campaigns/${campaignId}/consequences/new`}>
+              <ShieldAlert className="size-4" /> Criar Consequência
             </Link>
           </Button>
           {COMING_SOON_ACTIONS.map((action) => (

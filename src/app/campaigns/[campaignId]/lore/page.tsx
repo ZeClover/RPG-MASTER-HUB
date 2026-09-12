@@ -13,6 +13,8 @@ import { WikiListToolbar } from "@/components/wiki/wiki-list-toolbar";
 import { WikiEntityGrid } from "@/components/wiki/wiki-entity-grid";
 import { EmptyState } from "@/components/wiki/empty-state";
 import { CANON_STATUS_OPTIONS } from "@/components/wiki/status-config";
+import { CanonStatusBadge } from "@/components/wiki/canon-status-badge";
+import { VisibilityBadge } from "@/components/wiki/visibility-badge";
 
 export const metadata: Metadata = { title: "Lore" };
 
@@ -55,8 +57,12 @@ export default async function LoreListPage({ params, searchParams }: LorePageLis
     name: page.title,
     imageUrl: page.imageUrl,
     excerpt: page.content?.replace(/[#*_`>-]/g, "").slice(0, 160) ?? null,
-    canonStatus: page.canonStatus,
-    visibility: page.visibility,
+    statusBadges: (
+      <>
+        <CanonStatusBadge status={page.canonStatus} />
+        <VisibilityBadge visibility={page.visibility} />
+      </>
+    ),
     favorite: page.favorite,
     meta: page.category,
     tags: page.tags.map((entry) => entry.tag),

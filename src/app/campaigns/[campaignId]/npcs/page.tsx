@@ -13,6 +13,8 @@ import { WikiListToolbar } from "@/components/wiki/wiki-list-toolbar";
 import { WikiEntityGrid } from "@/components/wiki/wiki-entity-grid";
 import { EmptyState } from "@/components/wiki/empty-state";
 import { CANON_STATUS_OPTIONS } from "@/components/wiki/status-config";
+import { CanonStatusBadge } from "@/components/wiki/canon-status-badge";
+import { VisibilityBadge } from "@/components/wiki/visibility-badge";
 
 export const metadata: Metadata = { title: "NPCs" };
 
@@ -55,8 +57,12 @@ export default async function NpcsPage({ params, searchParams }: NpcsPageProps) 
     name: npc.name,
     imageUrl: npc.imageUrl,
     excerpt: npc.personality || npc.appearance,
-    canonStatus: npc.canonStatus,
-    visibility: npc.visibility,
+    statusBadges: (
+      <>
+        <CanonStatusBadge status={npc.canonStatus} />
+        <VisibilityBadge visibility={npc.visibility} />
+      </>
+    ),
     favorite: npc.favorite,
     meta: [npc.species, npc.narrativeStatus].filter(Boolean).join(" · ") || null,
     tags: npc.tags.map((entry) => entry.tag),

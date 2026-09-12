@@ -111,6 +111,12 @@ model Campaign {
   tags          Tag[]
   relationships Relationship[]
 
+  sessionPlans SessionPlan[]
+  scenes       Scene[]
+  quests       Quest[]
+  plotThreads  PlotThread[]
+  consequences Consequence[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -170,6 +176,9 @@ enum RelatableEntityType {
   LOCATION
   FACTION
   LORE_PAGE
+  QUEST
+  PLOT_THREAD
+  CONSEQUENCE
 }
 
 enum RelationshipImportance {
@@ -224,8 +233,8 @@ model Location {
   notes        String?
 
   parentLocationId String?
-  parent            Location?  @relation("LocationHierarchy", fields: [parentLocationId], references: [id], onDelete: Restrict)
-  children          Location[] @relation("LocationHierarchy")
+  parent           Location?  @relation("LocationHierarchy", fields: [parentLocationId], references: [id], onDelete: Restrict)
+  children         Location[] @relation("LocationHierarchy")
 
   canonStatus CanonStatus @default(DRAFT)
   visibility  Visibility  @default(GM_ONLY)
@@ -331,11 +340,14 @@ model Tag {
 
   createdAt DateTime @default(now())
 
-  npcs      NpcTag[]
-  locations LocationTag[]
-  factions  FactionTag[]
-  lorePages LorePageTag[]
-  ideas     IdeaTag[]
+  npcs         NpcTag[]
+  locations    LocationTag[]
+  factions     FactionTag[]
+  lorePages    LorePageTag[]
+  ideas        IdeaTag[]
+  quests       QuestTag[]
+  plotThreads  PlotThreadTag[]
+  consequences ConsequenceTag[]
 
   @@unique([campaignId, slug])
   @@map("tags")
@@ -419,4 +431,213 @@ model Relationship {
   @@index([campaignId, sourceType, sourceId])
   @@index([campaignId, targetType, targetId])
   @@map("relationships")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Fase 2 — Preparação
+// ─────────────────────────────────────────────────────────────────────────
+
+enum SessionPlanStatus {
+  PLANNING
+  READY
+  DONE
+  CANCELLED
+}
+
+enum SceneStatus {
+  PLANNED
+  PLAYED
+  CUT
+}
+
+enum QuestStatus {
+  NOT_STARTED
+  ACTIVE
+  COMPLETED
+  FAILED
+  ABANDONED
+}
+
+enum PlotThreadStatus {
+  ACTIVE
+  DORMANT
+  RESOLVED
+  ABANDONED
+}
+
+enum ConsequenceStatus {
+  PENDING
+  TRIGGERED
+  RESOLVED
+}
+
+model SessionPlan {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  title         String
+  sessionNumber Int?
+  plannedDate   DateTime?
+  pitch         String?
+  gmNotes       String?
+  status        SessionPlanStatus @default(PLANNING)
+
+  favorite Boolean @default(false)
+  archived Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scenes    Scene[]
+  checklist ChecklistItem[]
+
+  @@index([campaignId, archived])
+  @@index([campaignId, status])
+  @@map("session_plans")
+}
+
+model ChecklistItem {
+  id            String      @id @default(cuid())
+  sessionPlanId String
+  sessionPlan   SessionPlan @relation(fields: [sessionPlanId], references: [id], onDelete: Cascade)
+
+  label String
+  done  Boolean @default(false)
+  order Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionPlanId])
+  @@map("checklist_items")
+}
+
+model Scene {
+  id            String      @id @default(cuid())
+  campaignId    String
+  campaign      Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sessionPlanId String
+  sessionPlan   SessionPlan @relation(fields: [sessionPlanId], references: [id], onDelete: Cascade)
+
+  title     String
+  summary   String?
+  readAloud String?
+  goal      String?
+  order     Int         @default(0)
+  status    SceneStatus @default(PLANNED)
+
+  favorite Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId])
+  @@index([sessionPlanId, order])
+  @@map("scenes")
+}
+
+model Quest {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  objective   String?
+  reward      String?
+  status      QuestStatus @default(NOT_STARTED)
+  visibility  Visibility  @default(GM_ONLY)
+
+  favorite Boolean @default(false)
+  archived Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags QuestTag[]
+
+  @@index([campaignId, archived])
+  @@index([campaignId, status])
+  @@map("quests")
+}
+
+model PlotThread {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  status      PlotThreadStatus       @default(ACTIVE)
+  importance  RelationshipImportance @default(MEDIUM)
+  visibility  Visibility             @default(GM_ONLY)
+
+  favorite Boolean @default(false)
+  archived Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags PlotThreadTag[]
+
+  @@index([campaignId, archived])
+  @@index([campaignId, status])
+  @@map("plot_threads")
+}
+
+model Consequence {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  title       String
+  trigger     String?
+  description String?
+  status      ConsequenceStatus @default(PENDING)
+  visibility  Visibility        @default(GM_ONLY)
+
+  favorite Boolean @default(false)
+  archived Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags ConsequenceTag[]
+
+  @@index([campaignId, archived])
+  @@index([campaignId, status])
+  @@map("consequences")
+}
+
+model QuestTag {
+  questId String
+  quest   Quest  @relation(fields: [questId], references: [id], onDelete: Cascade)
+  tagId   String
+  tag     Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([questId, tagId])
+  @@index([tagId])
+  @@map("quest_tags")
+}
+
+model PlotThreadTag {
+  plotThreadId String
+  plotThread   PlotThread @relation(fields: [plotThreadId], references: [id], onDelete: Cascade)
+  tagId        String
+  tag          Tag        @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([plotThreadId, tagId])
+  @@index([tagId])
+  @@map("plot_thread_tags")
+}
+
+model ConsequenceTag {
+  consequenceId String
+  consequence   Consequence @relation(fields: [consequenceId], references: [id], onDelete: Cascade)
+  tagId         String
+  tag           Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([consequenceId, tagId])
+  @@index([tagId])
+  @@map("consequence_tags")
 }

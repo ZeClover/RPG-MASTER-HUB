@@ -2,7 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db";
 
-export type SearchResultType = "NPC" | "LOCATION" | "FACTION" | "LORE_PAGE" | "IDEA";
+export type SearchResultType = "NPC" | "LOCATION" | "FACTION" | "LORE_PAGE" | "IDEA" | "QUEST" | "PLOT_THREAD" | "CONSEQUENCE";
 
 export interface SearchResult {
   type: SearchResultType;
@@ -20,7 +20,7 @@ export async function searchCampaign(campaignId: string, query: string, limit = 
   const insensitive = { contains: trimmed, mode: "insensitive" as const };
   const byTag = { tags: { some: { tag: { name: insensitive } } } };
 
-  const [npcs, locations, factions, lorePages, ideas] = await Promise.all([
+  const [npcs, locations, factions, lorePages, ideas, quests, plotThreads, consequences] = await Promise.all([
     db.npc.findMany({
       where: { campaignId, OR: [{ name: insensitive }, { personality: insensitive }, { history: insensitive }, byTag] },
       take: limit,
@@ -43,6 +43,21 @@ export async function searchCampaign(campaignId: string, query: string, limit = 
     }),
     db.idea.findMany({
       where: { campaignId, OR: [{ title: insensitive }, { content: insensitive }, byTag] },
+      take: limit,
+      select: { id: true, title: true },
+    }),
+    db.quest.findMany({
+      where: { campaignId, OR: [{ title: insensitive }, { description: insensitive }, { objective: insensitive }, byTag] },
+      take: limit,
+      select: { id: true, title: true },
+    }),
+    db.plotThread.findMany({
+      where: { campaignId, OR: [{ title: insensitive }, { description: insensitive }, byTag] },
+      take: limit,
+      select: { id: true, title: true },
+    }),
+    db.consequence.findMany({
+      where: { campaignId, OR: [{ title: insensitive }, { trigger: insensitive }, { description: insensitive }, byTag] },
       take: limit,
       select: { id: true, title: true },
     }),
@@ -83,6 +98,27 @@ export async function searchCampaign(campaignId: string, query: string, limit = 
       title: idea.title,
       subtitle: null,
       href: `/campaigns/${campaignId}/ideas`,
+    })),
+    ...quests.map((quest) => ({
+      type: "QUEST" as const,
+      id: quest.id,
+      title: quest.title,
+      subtitle: null,
+      href: `/campaigns/${campaignId}/quests/${quest.id}`,
+    })),
+    ...plotThreads.map((thread) => ({
+      type: "PLOT_THREAD" as const,
+      id: thread.id,
+      title: thread.title,
+      subtitle: null,
+      href: `/campaigns/${campaignId}/plot-threads/${thread.id}`,
+    })),
+    ...consequences.map((consequence) => ({
+      type: "CONSEQUENCE" as const,
+      id: consequence.id,
+      title: consequence.title,
+      subtitle: null,
+      href: `/campaigns/${campaignId}/consequences/${consequence.id}`,
     })),
   ];
 

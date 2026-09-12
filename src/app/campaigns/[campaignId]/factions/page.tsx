@@ -13,6 +13,8 @@ import { WikiListToolbar } from "@/components/wiki/wiki-list-toolbar";
 import { WikiEntityGrid } from "@/components/wiki/wiki-entity-grid";
 import { EmptyState } from "@/components/wiki/empty-state";
 import { CANON_STATUS_OPTIONS } from "@/components/wiki/status-config";
+import { CanonStatusBadge } from "@/components/wiki/canon-status-badge";
+import { VisibilityBadge } from "@/components/wiki/visibility-badge";
 
 export const metadata: Metadata = { title: "Facções" };
 
@@ -55,8 +57,12 @@ export default async function FactionsPage({ params, searchParams }: FactionsPag
     name: faction.name,
     imageUrl: faction.imageUrl,
     excerpt: faction.description,
-    canonStatus: faction.canonStatus,
-    visibility: faction.visibility,
+    statusBadges: (
+      <>
+        <CanonStatusBadge status={faction.canonStatus} />
+        <VisibilityBadge visibility={faction.visibility} />
+      </>
+    ),
     favorite: faction.favorite,
     meta: faction.factionType,
     tags: faction.tags.map((entry) => entry.tag),

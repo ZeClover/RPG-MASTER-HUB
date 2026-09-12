@@ -54,6 +54,33 @@ export async function searchEntitiesByType(
       });
       return rows.map((row) => ({ id: row.id, name: row.title, imageUrl: row.imageUrl, archived: row.archived }));
     }
+    case "QUEST": {
+      const rows = await db.quest.findMany({
+        where: { campaignId, id: idFilter, title: query ? { contains: query, mode: "insensitive" } : undefined },
+        take: 20,
+        orderBy: { title: "asc" },
+        select: { id: true, title: true, archived: true },
+      });
+      return rows.map((row) => ({ id: row.id, name: row.title, imageUrl: null, archived: row.archived }));
+    }
+    case "PLOT_THREAD": {
+      const rows = await db.plotThread.findMany({
+        where: { campaignId, id: idFilter, title: query ? { contains: query, mode: "insensitive" } : undefined },
+        take: 20,
+        orderBy: { title: "asc" },
+        select: { id: true, title: true, archived: true },
+      });
+      return rows.map((row) => ({ id: row.id, name: row.title, imageUrl: null, archived: row.archived }));
+    }
+    case "CONSEQUENCE": {
+      const rows = await db.consequence.findMany({
+        where: { campaignId, id: idFilter, title: query ? { contains: query, mode: "insensitive" } : undefined },
+        take: 20,
+        orderBy: { title: "asc" },
+        select: { id: true, title: true, archived: true },
+      });
+      return rows.map((row) => ({ id: row.id, name: row.title, imageUrl: null, archived: row.archived }));
+    }
   }
 }
 
@@ -89,6 +116,24 @@ export async function resolveEntityRefs(
       select: { id: true, title: true, imageUrl: true, archived: true },
     });
     for (const row of rows) map.set(row.id, { type, id: row.id, name: row.title, imageUrl: row.imageUrl, archived: row.archived });
+  } else if (type === "QUEST") {
+    const rows = await db.quest.findMany({
+      where: { campaignId, id: { in: ids } },
+      select: { id: true, title: true, archived: true },
+    });
+    for (const row of rows) map.set(row.id, { type, id: row.id, name: row.title, imageUrl: null, archived: row.archived });
+  } else if (type === "PLOT_THREAD") {
+    const rows = await db.plotThread.findMany({
+      where: { campaignId, id: { in: ids } },
+      select: { id: true, title: true, archived: true },
+    });
+    for (const row of rows) map.set(row.id, { type, id: row.id, name: row.title, imageUrl: null, archived: row.archived });
+  } else if (type === "CONSEQUENCE") {
+    const rows = await db.consequence.findMany({
+      where: { campaignId, id: { in: ids } },
+      select: { id: true, title: true, archived: true },
+    });
+    for (const row of rows) map.set(row.id, { type, id: row.id, name: row.title, imageUrl: null, archived: row.archived });
   }
 
   return map;

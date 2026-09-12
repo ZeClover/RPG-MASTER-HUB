@@ -52,8 +52,12 @@ export default async function LocationDetailPage({ params }: LocationDetailPageP
     name: child.name,
     imageUrl: child.imageUrl,
     excerpt: child.description,
-    canonStatus: child.canonStatus,
-    visibility: child.visibility,
+    statusBadges: (
+      <>
+        <CanonStatusBadge status={child.canonStatus} />
+        <VisibilityBadge visibility={child.visibility} />
+      </>
+    ),
     favorite: child.favorite,
     tags: [],
   }));
