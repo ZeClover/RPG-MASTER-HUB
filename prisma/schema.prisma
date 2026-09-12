@@ -1,6 +1,7 @@
-// RPG Master Hub — Fase 0 (Fundação)
-// Núcleo: usuários, autenticação (Auth.js) e campanhas.
-// Novas entidades de domínio (NPCs, Locais, Facções, ...) chegam nas fases seguintes.
+// RPG Master Hub
+// Fase 0: usuários, autenticação (Auth.js) e campanhas.
+// Fase 1: wiki da campanha — NPCs, Locais, Facções, Lore, Ideias, Tags e
+// o sistema genérico de Relacionamentos (ver ARCHITECTURE.md, seção "Relacionamentos").
 
 generator client {
   provider = "prisma-client"
@@ -102,6 +103,14 @@ model Campaign {
 
   members CampaignMember[]
 
+  npcs          Npc[]
+  locations     Location[]
+  factions      Faction[]
+  lorePages     LorePage[]
+  ideas         Idea[]
+  tags          Tag[]
+  relationships Relationship[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -121,4 +130,293 @@ model CampaignMember {
   @@unique([campaignId, userId])
   @@index([userId])
   @@map("campaign_members")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Fase 1 — Wiki da campanha
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Ciclo de vida narrativo do conteúdo (independente do `archived` de cada
+/// entidade, que é só um "esconder da minha lista de trabalho" organizacional).
+enum CanonStatus {
+  DRAFT
+  PROPOSED
+  APPROVED
+  CANON
+  OBSOLETE
+  ARCHIVED
+}
+
+enum Visibility {
+  GM_ONLY
+  PLAYERS
+  PUBLIC
+}
+
+enum IdeaState {
+  NEW
+  INTERESTING
+  DEVELOPING
+  USED
+  ARCHIVED
+  DISCARDED
+}
+
+/// Tipos de entidade que podem participar de um Relationship. Estender este
+/// enum é o custo esperado para plugar um novo tipo de conteúdo no sistema de
+/// relacionamentos (ver ARCHITECTURE.md).
+enum RelatableEntityType {
+  NPC
+  LOCATION
+  FACTION
+  LORE_PAGE
+}
+
+enum RelationshipImportance {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Npc {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name            String
+  imageUrl        String?
+  age             String?
+  species         String?
+  gender          String?
+  appearance      String?
+  personality     String?
+  history         String?
+  goals           String?
+  fears           String?
+  secrets         String?
+  narrativeStatus String?
+  gmNotes         String?
+
+  canonStatus CanonStatus @default(DRAFT)
+  visibility  Visibility  @default(GM_ONLY)
+  favorite    Boolean     @default(false)
+  archived    Boolean     @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags NpcTag[]
+
+  @@index([campaignId, archived])
+  @@index([campaignId, favorite])
+  @@map("npcs")
+}
+
+model Location {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name         String
+  imageUrl     String?
+  description  String?
+  locationType String?
+  notes        String?
+
+  parentLocationId String?
+  parent            Location?  @relation("LocationHierarchy", fields: [parentLocationId], references: [id], onDelete: Restrict)
+  children          Location[] @relation("LocationHierarchy")
+
+  canonStatus CanonStatus @default(DRAFT)
+  visibility  Visibility  @default(GM_ONLY)
+  favorite    Boolean     @default(false)
+  archived    Boolean     @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags LocationTag[]
+
+  @@index([campaignId, archived])
+  @@index([campaignId, favorite])
+  @@index([parentLocationId])
+  @@map("locations")
+}
+
+model Faction {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name        String
+  imageUrl    String?
+  factionType String?
+  description String?
+  history     String?
+  goals       String?
+  resources   String?
+  secrets     String?
+  notes       String?
+
+  canonStatus CanonStatus @default(DRAFT)
+  visibility  Visibility  @default(GM_ONLY)
+  favorite    Boolean     @default(false)
+  archived    Boolean     @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags FactionTag[]
+
+  @@index([campaignId, archived])
+  @@index([campaignId, favorite])
+  @@map("factions")
+}
+
+model LorePage {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  title    String
+  content  String?
+  imageUrl String?
+  category String?
+
+  canonStatus CanonStatus @default(DRAFT)
+  visibility  Visibility  @default(GM_ONLY)
+  favorite    Boolean     @default(false)
+  archived    Boolean     @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags LorePageTag[]
+
+  @@index([campaignId, archived])
+  @@index([campaignId, favorite])
+  @@map("lore_pages")
+}
+
+model Idea {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  title   String
+  content String?
+  state   IdeaState @default(NEW)
+
+  favorite Boolean @default(false)
+  archived Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags IdeaTag[]
+
+  @@index([campaignId, archived])
+  @@index([campaignId, state])
+  @@map("ideas")
+}
+
+model Tag {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name  String
+  slug  String
+  color String?
+
+  createdAt DateTime @default(now())
+
+  npcs      NpcTag[]
+  locations LocationTag[]
+  factions  FactionTag[]
+  lorePages LorePageTag[]
+  ideas     IdeaTag[]
+
+  @@unique([campaignId, slug])
+  @@map("tags")
+}
+
+model NpcTag {
+  npcId String
+  npc   Npc    @relation(fields: [npcId], references: [id], onDelete: Cascade)
+  tagId String
+  tag   Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([npcId, tagId])
+  @@index([tagId])
+  @@map("npc_tags")
+}
+
+model LocationTag {
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  tagId      String
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([locationId, tagId])
+  @@index([tagId])
+  @@map("location_tags")
+}
+
+model FactionTag {
+  factionId String
+  faction   Faction @relation(fields: [factionId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([factionId, tagId])
+  @@index([tagId])
+  @@map("faction_tags")
+}
+
+model LorePageTag {
+  lorePageId String
+  lorePage   LorePage @relation(fields: [lorePageId], references: [id], onDelete: Cascade)
+  tagId      String
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([lorePageId, tagId])
+  @@index([tagId])
+  @@map("lore_page_tags")
+}
+
+model IdeaTag {
+  ideaId String
+  idea   Idea   @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  tagId  String
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([ideaId, tagId])
+  @@index([tagId])
+  @@map("idea_tags")
+}
+
+/// Relacionamento polimórfico genérico entre entidades da wiki. Ver
+/// ARCHITECTURE.md ("Relacionamentos") para a discussão das alternativas e
+/// por que este desenho foi escolhido.
+model Relationship {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  sourceType RelatableEntityType
+  sourceId   String
+  targetType RelatableEntityType
+  targetId   String
+
+  type        String
+  description String?
+  importance  RelationshipImportance?
+  visibility  Visibility              @default(GM_ONLY)
+
+  createdAt DateTime @default(now())
+
+  @@index([campaignId, sourceType, sourceId])
+  @@index([campaignId, targetType, targetId])
+  @@map("relationships")
 }

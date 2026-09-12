@@ -2,7 +2,7 @@
 
 O sistema operacional para Mestres de RPG organizarem, prepararem e narrarem campanhas que duram meses ou anos.
 
-Este repositório está na **Fase 0 — Fundação**: autenticação, campanhas, layout, PWA e a arquitetura modular sobre a qual todas as fases seguintes serão construídas. Veja [`ARCHITECTURE.md`](./ARCHITECTURE.md) para as decisões técnicas e o roadmap completo por fases.
+Este repositório está na **Fase 1 — Wiki da campanha**: NPCs, Locais (com hierarquia), Facções, Lore (Markdown leve), Idea Vault, Tags, Relacionamentos entre entidades, Busca global, Command Palette (Ctrl+K) e Dashboard com dados reais — construídos sobre a Fase 0 (autenticação, campanhas, layout, PWA). Veja [`ARCHITECTURE.md`](./ARCHITECTURE.md) para as decisões técnicas e o roadmap completo por fases.
 
 ## Stack
 

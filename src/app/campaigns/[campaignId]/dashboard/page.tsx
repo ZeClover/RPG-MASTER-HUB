@@ -1,34 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  BookOpen,
-  Brain,
-  Dices,
-  Lightbulb,
-  MapPin,
-  ScrollText,
-  Settings,
-  Sparkles,
-  Users,
-} from "lucide-react";
+import { BookOpen, Brain, Dices, Lightbulb, MapPin, ScrollText, Settings, Shield, Users } from "lucide-react";
 
 import { requireUser } from "@/modules/core/auth/session";
 import { getCampaignForUser, countCampaignMembers } from "@/modules/core/campaigns/queries";
 import { CampaignAccessError } from "@/modules/core/permissions";
+import { countNpcs } from "@/modules/creation/npcs/queries";
+import { countLocations } from "@/modules/creation/locations/queries";
+import { countFactions } from "@/modules/creation/factions/queries";
+import { countLorePages } from "@/modules/creation/lore/queries";
+import { countIdeas } from "@/modules/creation/ideas/queries";
+import { listFavoriteEntities, listRecentEntities } from "@/modules/core/dashboard/queries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { EntityRefList } from "@/components/wiki/entity-ref-list";
 import { formatDateTime, formatRelativeTime } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-const QUICK_ACTIONS = [
-  { label: "Criar NPC", icon: Users, phase: "Fase 1" },
-  { label: "Criar Local", icon: MapPin, phase: "Fase 1" },
-  { label: "Brainstorm", icon: Lightbulb, phase: "Fase 1" },
+const COMING_SOON_ACTIONS = [
   { label: "Criar Missão", icon: ScrollText, phase: "Fase 2" },
-  { label: "Criar Cena", icon: Sparkles, phase: "Fase 2" },
   { label: "Rolar Dados", icon: Dices, phase: "Fase 3" },
   { label: "Abrir Modo Sessão", icon: BookOpen, phase: "Fase 3" },
 ];
@@ -49,7 +42,25 @@ export default async function CampaignDashboardPage({ params }: DashboardPagePro
     throw error;
   }
 
-  const memberCount = await countCampaignMembers(campaignId);
+  const [memberCount, npcCount, locationCount, factionCount, loreCount, ideaCount, recent, favorites] =
+    await Promise.all([
+      countCampaignMembers(campaignId),
+      countNpcs(campaignId),
+      countLocations(campaignId),
+      countFactions(campaignId),
+      countLorePages(campaignId),
+      countIdeas(campaignId),
+      listRecentEntities(campaignId, 6),
+      listFavoriteEntities(campaignId, 6),
+    ]);
+
+  const contentCounts = [
+    { label: "NPCs", count: npcCount, href: `/campaigns/${campaignId}/npcs`, icon: Users },
+    { label: "Locais", count: locationCount, href: `/campaigns/${campaignId}/locations`, icon: MapPin },
+    { label: "Facções", count: factionCount, href: `/campaigns/${campaignId}/factions`, icon: Shield },
+    { label: "Lore", count: loreCount, href: `/campaigns/${campaignId}/lore`, icon: BookOpen },
+    { label: "Ideias", count: ideaCount, href: `/campaigns/${campaignId}/ideas`, icon: Lightbulb },
+  ];
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-8">
@@ -66,6 +77,18 @@ export default async function CampaignDashboardPage({ params }: DashboardPagePro
             .
           </p>
         )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {contentCounts.map((item) => (
+          <Link key={item.label} href={item.href}>
+            <Card className="p-4 transition-colors hover:border-primary/50">
+              <item.icon className="mb-2 size-4 text-muted-foreground" />
+              <p className="text-lg font-semibold">{item.count}</p>
+              <p className="text-xs text-muted-foreground">{item.label}</p>
+            </Card>
+          </Link>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -99,12 +122,56 @@ export default async function CampaignDashboardPage({ params }: DashboardPagePro
         </Card>
       </div>
 
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Últimas alterações</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <EntityRefList items={recent} emptyMessage="Nada criado ainda." />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Favoritos</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <EntityRefList items={favorites} emptyMessage="Nenhum favorito ainda." />
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Ações rápidas</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-2 pt-0 sm:grid-cols-4">
-          {QUICK_ACTIONS.map((action) => (
+          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
+            <Link href={`/campaigns/${campaignId}/npcs/new`}>
+              <Users className="size-4" /> Criar NPC
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
+            <Link href={`/campaigns/${campaignId}/locations/new`}>
+              <MapPin className="size-4" /> Criar Local
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
+            <Link href={`/campaigns/${campaignId}/factions/new`}>
+              <Shield className="size-4" /> Criar Facção
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
+            <Link href={`/campaigns/${campaignId}/lore/new`}>
+              <BookOpen className="size-4" /> Criar Lore
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
+            <Link href={`/campaigns/${campaignId}/ideas`}>
+              <Lightbulb className="size-4" /> Nova Ideia
+            </Link>
+          </Button>
+          {COMING_SOON_ACTIONS.map((action) => (
             <Tooltip key={action.label}>
               <TooltipTrigger
                 aria-disabled="true"
@@ -116,7 +183,7 @@ export default async function CampaignDashboardPage({ params }: DashboardPagePro
               <TooltipContent>Em breve — chega na {action.phase}</TooltipContent>
             </Tooltip>
           ))}
-          <Button asChild variant="outline" className="col-span-2 h-auto flex-col gap-2 py-3 sm:col-span-1">
+          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
             <Link href={`/campaigns/${campaignId}/settings`}>
               <Settings className="size-4" />
               Configurações

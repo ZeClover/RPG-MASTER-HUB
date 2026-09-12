@@ -32,13 +32,18 @@ function DropdownMenuContent({
 function DropdownMenuItem({
   className,
   inset,
+  variant = "default",
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Item> & { inset?: boolean }) {
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Item> & {
+  inset?: boolean;
+  variant?: "default" | "destructive";
+}) {
   return (
     <DropdownMenuPrimitive.Item
       className={cn(
         "relative flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none transition-colors focus:bg-surface focus:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
         inset && "pl-8",
+        variant === "destructive" && "text-destructive focus:text-destructive",
         className,
       )}
       {...props}

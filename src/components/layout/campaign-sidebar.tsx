@@ -16,10 +16,12 @@ function NavEntries({ campaignId, orientation }: CampaignSidebarProps & { orient
 
   return (
     <>
-      {CAMPAIGN_NAV_ITEMS.map((item) => {
+      {CAMPAIGN_NAV_ITEMS.map((item, index) => {
         const href = item.href?.(campaignId);
-        const isActive = Boolean(href) && pathname === href;
+        const isActive = Boolean(href) && (pathname === href || pathname.startsWith(`${href}/`));
         const Icon = item.icon;
+        const previousSection = index > 0 ? CAMPAIGN_NAV_ITEMS[index - 1].section : undefined;
+        const showSectionHeader = orientation === "vertical" && item.section !== previousSection;
 
         const content = (
           <span
@@ -38,19 +40,28 @@ function NavEntries({ campaignId, orientation }: CampaignSidebarProps & { orient
           </span>
         );
 
-        if (!href) {
-          return (
-            <Tooltip key={item.key}>
-              <TooltipTrigger className="text-left">{content}</TooltipTrigger>
-              <TooltipContent>Em breve — chega na {item.comingSoonPhase}</TooltipContent>
-            </Tooltip>
-          );
-        }
-
-        return (
+        const entry = !href ? (
+          <Tooltip key={item.key}>
+            <TooltipTrigger className="text-left">{content}</TooltipTrigger>
+            <TooltipContent>Em breve — chega na {item.comingSoonPhase}</TooltipContent>
+          </Tooltip>
+        ) : (
           <Link key={item.key} href={href}>
             {content}
           </Link>
+        );
+
+        if (!showSectionHeader) return entry;
+
+        return (
+          <div key={`section-${item.key}`} className="flex flex-col gap-1">
+            {item.section && (
+              <p className="mt-2 px-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70 first:mt-0">
+                {item.section}
+              </p>
+            )}
+            {entry}
+          </div>
         );
       })}
     </>

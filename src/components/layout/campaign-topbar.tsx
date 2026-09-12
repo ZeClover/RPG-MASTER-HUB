@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { UserMenu } from "@/components/layout/user-menu";
 import { SyncStatusIndicator } from "@/components/layout/sync-status-indicator";
+import { SearchTriggerButton } from "@/components/wiki/search-trigger-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { SessionUserLike } from "@/types/session";
 
@@ -29,6 +30,7 @@ export function CampaignTopbar({ campaign, user }: CampaignTopbarProps) {
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-3">
+        <SearchTriggerButton />
         <SyncStatusIndicator />
         <UserMenu name={user.name} email={user.email} image={user.image} />
       </div>

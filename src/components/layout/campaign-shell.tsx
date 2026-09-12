@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { CampaignTopbar } from "@/components/layout/campaign-topbar";
 import { CampaignSidebar } from "@/components/layout/campaign-sidebar";
+import { CommandPalette } from "@/components/wiki/command-palette";
 import type { SessionUserLike } from "@/types/session";
 
 interface CampaignShellProps {
@@ -18,6 +19,7 @@ export function CampaignShell({ campaign, user, children }: CampaignShellProps) 
         <CampaignSidebar campaignId={campaign.id} />
         <main className="min-w-0 flex-1">{children}</main>
       </div>
+      <CommandPalette campaignId={campaign.id} />
     </div>
   );
 }
