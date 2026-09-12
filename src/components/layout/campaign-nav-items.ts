@@ -4,6 +4,7 @@ import {
   CalendarCheck,
   Clock,
   Dices,
+  Gem,
   GitBranch,
   History,
   LayoutDashboard,
@@ -101,6 +102,7 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
   { key: "audio", label: "Music/SFX Board", icon: Music, href: (id) => `/campaigns/${id}/audio`, section: "Áudio" },
 
   { key: "tables", label: "Tabelas", icon: Dices, href: (id) => `/campaigns/${id}/tables`, section: "Ferramentas" },
+  { key: "loot", label: "Loot Generator", icon: Gem, href: (id) => `/campaigns/${id}/loot`, section: "Ferramentas" },
 
   { key: "system", label: "Sistema", icon: Settings2, comingSoonPhase: "Fase 9", section: "Em breve" },
 

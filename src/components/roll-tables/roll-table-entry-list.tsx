@@ -16,6 +16,8 @@ interface EntryListProps {
   tableId: string;
   /** Rótulo do campo de peso: "Peso" na Table Builder, "Chance" no Loot Generator — mesmo número, outro nome. */
   weightLabel: string;
+  /** "Entrada" na Table Builder, "Item" no Loot Generator — mesmo campo, outro nome. */
+  entryLabel?: string;
 }
 
 function EntryRow({
@@ -57,11 +59,13 @@ function AddEntryForm({
   kind,
   tableId,
   weightLabel,
+  entryLabel,
 }: {
   campaignId: string;
   kind: RollTableKind;
   tableId: string;
   weightLabel: string;
+  entryLabel: string;
 }) {
   const action = addRollTableEntryAction.bind(null, campaignId, kind, tableId);
   const [state, formAction, pending] = useActionState(action, undefined);
@@ -79,7 +83,7 @@ function AddEntryForm({
     <form ref={formRef} action={formAction} className="flex flex-col gap-2">
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex min-w-40 flex-1 flex-col gap-1.5">
-          <Label htmlFor="label">Entrada</Label>
+          <Label htmlFor="label">{entryLabel}</Label>
           <Input id="label" name="label" placeholder="Texto sorteável…" autoComplete="off" />
         </div>
         <div className="flex w-28 flex-col gap-1.5">
@@ -95,7 +99,14 @@ function AddEntryForm({
   );
 }
 
-export function RollTableEntryList({ entries, campaignId, kind, tableId, weightLabel }: EntryListProps) {
+export function RollTableEntryList({
+  entries,
+  campaignId,
+  kind,
+  tableId,
+  weightLabel,
+  entryLabel = "Entrada",
+}: EntryListProps) {
   return (
     <div className="flex flex-col gap-3">
       {entries.length > 0 && (
@@ -112,7 +123,7 @@ export function RollTableEntryList({ entries, campaignId, kind, tableId, weightL
           ))}
         </ul>
       )}
-      <AddEntryForm campaignId={campaignId} kind={kind} tableId={tableId} weightLabel={weightLabel} />
+      <AddEntryForm campaignId={campaignId} kind={kind} tableId={tableId} weightLabel={weightLabel} entryLabel={entryLabel} />
     </div>
   );
 }
