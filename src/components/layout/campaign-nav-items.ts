@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   Skull,
   Sparkles,
+  Stamp,
   Swords,
   Tag,
   TreeDeciduous,
@@ -137,6 +138,13 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
     label: "Lore Guardian",
     icon: ShieldCheck,
     href: (id) => `/campaigns/${id}/lore-guardian`,
+    section: "Copiloto",
+  },
+  {
+    key: "canon-checker",
+    label: "Canon Checker",
+    icon: Stamp,
+    href: (id) => `/campaigns/${id}/canon-checker`,
     section: "Copiloto",
   },
 
