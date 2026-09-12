@@ -5,11 +5,14 @@ import { requireUser } from "@/modules/core/auth/session";
 import { getNpcForUser } from "@/modules/creation/npcs/queries";
 import { deleteNpcAction, toggleNpcArchivedAction, toggleNpcFavoriteAction } from "@/modules/creation/npcs/actions";
 import { listRelationshipsForEntity } from "@/modules/creation/relationships/queries";
+import { listFamilyRelationsForNpc } from "@/modules/worldbuilding/family-tree/queries";
+import { groupFamilyRelationsForNpc } from "@/modules/worldbuilding/family-tree/tree";
 import { CanonStatusBadge } from "@/components/wiki/canon-status-badge";
 import { VisibilityBadge } from "@/components/wiki/visibility-badge";
 import { TagBadgeList } from "@/components/wiki/tag-badge-list";
 import { RelatedEntitiesPanel } from "@/components/wiki/related-entities-panel";
 import { EntityActionsMenu } from "@/components/wiki/entity-actions-menu";
+import { FamilyPanel } from "@/components/family-tree/family-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface NpcDetailPageProps {
@@ -30,6 +33,8 @@ export default async function NpcDetailPage({ params }: NpcDetailPageProps) {
   if (!npc) notFound();
 
   const relationships = await listRelationshipsForEntity(campaignId, "NPC", npcId);
+  const familyRelations = await listFamilyRelationsForNpc(campaignId, npcId);
+  const familyGroups = groupFamilyRelationsForNpc(npcId, familyRelations);
 
   const fields: { label: string; value: string | null }[] = [
     { label: "Aparência", value: npc.appearance },
@@ -101,6 +106,8 @@ export default async function NpcDetailPage({ params }: NpcDetailPageProps) {
           <p className="text-sm text-muted-foreground">Nenhum detalhe preenchido ainda.</p>
         )}
       </div>
+
+      <FamilyPanel campaignId={campaignId} npcId={npcId} npcName={npc.name} groups={familyGroups} />
 
       <RelatedEntitiesPanel campaignId={campaignId} entityType="NPC" entityId={npcId} relationships={relationships} />
     </div>

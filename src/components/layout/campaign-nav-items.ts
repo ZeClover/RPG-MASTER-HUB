@@ -18,6 +18,7 @@ import {
   ShieldAlert,
   Swords,
   Tag,
+  TreeDeciduous,
   Users,
   Wrench,
 } from "lucide-react";
@@ -75,6 +76,13 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
     section: "Mundo",
   },
   { key: "clocks", label: "Relógios", icon: Clock, href: (id) => `/campaigns/${id}/clocks`, section: "Mundo" },
+  {
+    key: "family-tree",
+    label: "Family Tree",
+    icon: TreeDeciduous,
+    href: (id) => `/campaigns/${id}/family-tree`,
+    section: "Mundo",
+  },
 
   { key: "game", label: "Jogo", icon: Dices, comingSoonPhase: "Fase 6", section: "Em breve" },
   { key: "audio", label: "Music/SFX Board", icon: Music, href: (id) => `/campaigns/${id}/audio`, section: "Áudio" },
