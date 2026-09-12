@@ -14,6 +14,7 @@ import {
   Lightbulb,
   MapPin,
   Music,
+  NotebookText,
   Package,
   Puzzle,
   Radar,
@@ -145,6 +146,13 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
     label: "Canon Checker",
     icon: Stamp,
     href: (id) => `/campaigns/${id}/canon-checker`,
+    section: "Copiloto",
+  },
+  {
+    key: "campaign-recall",
+    label: "Campaign Recall",
+    icon: NotebookText,
+    href: (id) => `/campaigns/${id}/campaign-recall`,
     section: "Copiloto",
   },
 
