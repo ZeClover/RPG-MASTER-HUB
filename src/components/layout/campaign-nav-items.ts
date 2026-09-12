@@ -14,6 +14,7 @@ import {
   Music,
   Package,
   Puzzle,
+  Radar,
   Scroll,
   Search,
   Settings,
@@ -106,6 +107,13 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
   { key: "loot", label: "Loot Generator", icon: Gem, href: (id) => `/campaigns/${id}/loot`, section: "Ferramentas" },
 
   { key: "brain", label: "Campaign Brain", icon: Brain, href: (id) => `/campaigns/${id}/brain`, section: "Inteligência" },
+  {
+    key: "context",
+    label: "Context Engine",
+    icon: Radar,
+    href: (id) => `/campaigns/${id}/context`,
+    section: "Inteligência",
+  },
 
   { key: "system", label: "Sistema", icon: Settings2, comingSoonPhase: "Fase 9", section: "Em breve" },
 

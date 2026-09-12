@@ -1,7 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-import type { MysteryStatus } from "@/generated/prisma/client";
+import type { MysteryStatus, RelatableEntityType } from "@/generated/prisma/client";
 import { requireCampaignAccess } from "@/modules/core/permissions";
 import type { WikiListFilters } from "@/modules/creation/wiki-filters";
 import { resolveEntityRefs, type EntityRef } from "@/modules/creation/relationships/queries";
@@ -59,4 +59,19 @@ export async function resolveClueLinks(
     for (const [id, ref] of resolved) combined.set(`${type}:${id}`, ref);
   }
   return combined;
+}
+
+/**
+ * Fase 7 (Context Engine, ver ARCHITECTURE.md, seção 18.2) — o inverso de
+ * `resolveClueLinks`: dado uma entidade, quais pistas de Mistério apontam
+ * PARA ela. Hoje isso não aparece em lugar nenhum da própria página da
+ * entidade (só o Mistério, ao abrir, mostra o vínculo saindo dele) — é
+ * exatamente o tipo de referência cruzada que motiva o Context Engine.
+ */
+export function findCluesLinkedToEntity(campaignId: string, type: RelatableEntityType, id: string) {
+  return db.clue.findMany({
+    where: { linkedEntityType: type, linkedEntityId: id, mystery: { campaignId } },
+    include: { mystery: { select: { id: true, title: true, archived: true } } },
+    orderBy: { createdAt: "desc" },
+  });
 }
