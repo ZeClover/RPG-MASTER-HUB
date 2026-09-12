@@ -2,6 +2,7 @@ import type {
   CanonStatus,
   ConsequenceStatus,
   IdeaState,
+  MysteryStatus,
   PlotThreadStatus,
   QuestStatus,
   SceneStatus,
@@ -135,3 +136,15 @@ export const SCENE_STATUS_BADGE_VARIANT: Record<SceneStatus, NonNullable<BadgePr
 };
 
 export const SCENE_STATUS_OPTIONS = Object.entries(SCENE_STATUS_LABELS) as [SceneStatus, string][];
+
+export const MYSTERY_STATUS_LABELS: Record<MysteryStatus, string> = {
+  OPEN: "Aberto",
+  RESOLVED: "Resolvido",
+};
+
+export const MYSTERY_STATUS_BADGE_VARIANT: Record<MysteryStatus, NonNullable<BadgeProps["variant"]>> = {
+  OPEN: "warning",
+  RESOLVED: "success",
+};
+
+export const MYSTERY_STATUS_OPTIONS = Object.entries(MYSTERY_STATUS_LABELS) as [MysteryStatus, string][];

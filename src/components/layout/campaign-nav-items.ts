@@ -10,6 +10,7 @@ import {
   Lightbulb,
   MapPin,
   Music,
+  Puzzle,
   Scroll,
   Search,
   Settings,
@@ -81,6 +82,13 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
     label: "Family Tree",
     icon: TreeDeciduous,
     href: (id) => `/campaigns/${id}/family-tree`,
+    section: "Mundo",
+  },
+  {
+    key: "mysteries",
+    label: "Mystery Board",
+    icon: Puzzle,
+    href: (id) => `/campaigns/${id}/mysteries`,
     section: "Mundo",
   },
 
