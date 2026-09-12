@@ -1,9 +1,20 @@
 import { z } from "zod";
 
 export const relationshipFormSchema = z.object({
-  targetType: z.enum(["NPC", "LOCATION", "FACTION", "LORE_PAGE", "QUEST", "PLOT_THREAD", "CONSEQUENCE"], {
-    error: "Escolha o tipo do alvo.",
-  }),
+  targetType: z.enum(
+    [
+      "NPC",
+      "LOCATION",
+      "FACTION",
+      "LORE_PAGE",
+      "QUEST",
+      "PLOT_THREAD",
+      "CONSEQUENCE",
+      "TIMELINE_EVENT",
+      "MYSTERY",
+    ],
+    { error: "Escolha o tipo do alvo." },
+  ),
   targetId: z.string().min(1, { error: "Selecione uma entidade." }),
   type: z
     .string()

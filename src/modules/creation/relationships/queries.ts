@@ -81,6 +81,24 @@ export async function searchEntitiesByType(
       });
       return rows.map((row) => ({ id: row.id, name: row.title, imageUrl: null, archived: row.archived }));
     }
+    case "TIMELINE_EVENT": {
+      const rows = await db.timelineEvent.findMany({
+        where: { campaignId, id: idFilter, title: query ? { contains: query, mode: "insensitive" } : undefined },
+        take: 20,
+        orderBy: { title: "asc" },
+        select: { id: true, title: true, archived: true },
+      });
+      return rows.map((row) => ({ id: row.id, name: row.title, imageUrl: null, archived: row.archived }));
+    }
+    case "MYSTERY": {
+      const rows = await db.mystery.findMany({
+        where: { campaignId, id: idFilter, title: query ? { contains: query, mode: "insensitive" } : undefined },
+        take: 20,
+        orderBy: { title: "asc" },
+        select: { id: true, title: true, archived: true },
+      });
+      return rows.map((row) => ({ id: row.id, name: row.title, imageUrl: null, archived: row.archived }));
+    }
   }
 }
 
@@ -130,6 +148,18 @@ export async function resolveEntityRefs(
     for (const row of rows) map.set(row.id, { type, id: row.id, name: row.title, imageUrl: null, archived: row.archived });
   } else if (type === "CONSEQUENCE") {
     const rows = await db.consequence.findMany({
+      where: { campaignId, id: { in: ids } },
+      select: { id: true, title: true, archived: true },
+    });
+    for (const row of rows) map.set(row.id, { type, id: row.id, name: row.title, imageUrl: null, archived: row.archived });
+  } else if (type === "TIMELINE_EVENT") {
+    const rows = await db.timelineEvent.findMany({
+      where: { campaignId, id: { in: ids } },
+      select: { id: true, title: true, archived: true },
+    });
+    for (const row of rows) map.set(row.id, { type, id: row.id, name: row.title, imageUrl: null, archived: row.archived });
+  } else if (type === "MYSTERY") {
+    const rows = await db.mystery.findMany({
       where: { campaignId, id: { in: ids } },
       select: { id: true, title: true, archived: true },
     });

@@ -123,6 +123,12 @@ model Campaign {
   discordLink        DiscordLink?
   musicPlaybackState MusicPlaybackState?
 
+  timelineEvents  TimelineEvent[]
+  calendar        CampaignCalendar?
+  narrativeClocks NarrativeClock[]
+  familyRelations FamilyRelation[]
+  mysteries       Mystery[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -176,7 +182,8 @@ enum IdeaState {
 
 /// Tipos de entidade que podem participar de um Relationship. Estender este
 /// enum é o custo esperado para plugar um novo tipo de conteúdo no sistema de
-/// relacionamentos (ver ARCHITECTURE.md).
+/// relacionamentos (ver ARCHITECTURE.md). TIMELINE_EVENT e MYSTERY chegaram
+/// na Fase 5 (ver ARCHITECTURE.md, seção 16.1).
 enum RelatableEntityType {
   NPC
   LOCATION
@@ -185,6 +192,8 @@ enum RelatableEntityType {
   QUEST
   PLOT_THREAD
   CONSEQUENCE
+  TIMELINE_EVENT
+  MYSTERY
 }
 
 enum RelationshipImportance {
@@ -221,6 +230,9 @@ model Npc {
   updatedAt DateTime @updatedAt
 
   tags NpcTag[]
+
+  familyRelationsAsA FamilyRelation[] @relation("FamilyRelationNpcA")
+  familyRelationsAsB FamilyRelation[] @relation("FamilyRelationNpcB")
 
   @@index([campaignId, archived])
   @@index([campaignId, favorite])
@@ -346,14 +358,16 @@ model Tag {
 
   createdAt DateTime @default(now())
 
-  npcs         NpcTag[]
-  locations    LocationTag[]
-  factions     FactionTag[]
-  lorePages    LorePageTag[]
-  ideas        IdeaTag[]
-  quests       QuestTag[]
-  plotThreads  PlotThreadTag[]
-  consequences ConsequenceTag[]
+  npcs           NpcTag[]
+  locations      LocationTag[]
+  factions       FactionTag[]
+  lorePages      LorePageTag[]
+  ideas          IdeaTag[]
+  quests         QuestTag[]
+  plotThreads    PlotThreadTag[]
+  consequences   ConsequenceTag[]
+  timelineEvents TimelineEventTag[]
+  mysteries      MysteryTag[]
 
   @@unique([campaignId, slug])
   @@map("tags")
@@ -806,4 +820,194 @@ model SfxTriggerEvent {
 
   @@index([campaignId, processedAt])
   @@map("sfx_trigger_events")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Fase 5 — World Building (Timeline, Calendário, Relógios Narrativos,
+// Family Tree, Mystery Board)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Evento histórico/narrativo da campanha. `narrativeDate` é texto livre (o
+/// calendário do mundo de ficção é definido pelo mestre, não pelo app — ver
+/// ARCHITECTURE.md, seção 16.2); `order` é quem de fato ordena a lista,
+/// reordenável mesmo sem datas exatas, mesmo padrão de `Scene.order` (13.2).
+model TimelineEvent {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  title         String
+  description   String?
+  narrativeDate String?
+  order         Int     @default(0)
+
+  visibility Visibility @default(GM_ONLY)
+  favorite   Boolean    @default(false)
+  archived   Boolean    @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags TimelineEventTag[]
+
+  @@index([campaignId, archived])
+  @@index([campaignId, order])
+  @@map("timeline_events")
+}
+
+model TimelineEventTag {
+  timelineEventId String
+  timelineEvent   TimelineEvent @relation(fields: [timelineEventId], references: [id], onDelete: Cascade)
+  tagId           String
+  tag             Tag           @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([timelineEventId, tagId])
+  @@index([tagId])
+  @@map("timeline_event_tags")
+}
+
+/// Corte de escopo deliberado (ver ARCHITECTURE.md, seção 16.2): em vez de um
+/// sistema de calendário customizável (meses/dias com nomes próprios do
+/// mundo de ficção), a Fase 5 entrega só um contador "dia atual da campanha"
+/// — uma linha por campanha, no mesmo padrão singleton de `DiscordLink`/
+/// `MusicPlaybackState` (Fase 4). Sem tabela própria de página: é um widget
+/// no topo da Timeline.
+model CampaignCalendar {
+  id         String   @id @default(cuid())
+  campaignId String   @unique
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  currentDay Int    @default(1)
+  dayLabel   String @default("Dia")
+
+  updatedAt DateTime @updatedAt
+
+  @@map("campaign_calendars")
+}
+
+/// Relógio narrativo (padrão PbtA/Blades in the Dark): progresso de uma
+/// ameaça ou objetivo em `segments` fatias, `filled` preenchidas. Sem
+/// `visibility`/tags/Relacionamentos — é uma ferramenta de acompanhamento do
+/// mestre, não conteúdo compartilhável da wiki (mesmo raciocínio de
+/// `SessionPlan` não ter `canonStatus`/`visibility`, seção 13.5).
+model NarrativeClock {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  segments    Int     @default(4)
+  filled      Int     @default(0)
+
+  favorite Boolean @default(false)
+  archived Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId, archived])
+  @@map("narrative_clocks")
+}
+
+/// Tipo de parentesco entre dois NPCs. `PARENT_OF`/`SIBLING_OF` cobrem a
+/// direção inversa por leitura (o pai de A é A lido do lado B) — ver
+/// ARCHITECTURE.md, seção 16.3, para a decisão de não usar `RelatableEntityType`.
+enum FamilyRelationType {
+  PARENT_OF
+  SPOUSE_OF
+  SIBLING_OF
+}
+
+/// Parentesco entre dois NPCs — tabela dedicada com FK real (não polimórfica),
+/// porque os dois lados são sempre NPC (ver ARCHITECTURE.md, seção 16.3, para
+/// o trade-off frente ao sistema genérico de Relacionamentos, seção 12.1).
+model FamilyRelation {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  npcAId String
+  npcA   Npc    @relation("FamilyRelationNpcA", fields: [npcAId], references: [id], onDelete: Cascade)
+  npcBId String
+  npcB   Npc    @relation("FamilyRelationNpcB", fields: [npcBId], references: [id], onDelete: Cascade)
+
+  relationType FamilyRelationType
+  notes        String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([npcAId, npcBId, relationType])
+  @@index([campaignId])
+  @@index([npcBId])
+  @@map("family_relations")
+}
+
+enum MysteryStatus {
+  OPEN
+  RESOLVED
+}
+
+/// Mistério/investigação: entra no sistema de Relacionamentos genérico (ex.:
+/// um NPC pode ser "suspeito em" um Mistério) porque, ao contrário de Clue
+/// (abaixo), tem página de detalhe própria — mesmo critério da seção 13.1.
+model Mystery {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  status      MysteryStatus @default(OPEN)
+  visibility  Visibility    @default(GM_ONLY)
+
+  favorite Boolean @default(false)
+  archived Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tags  MysteryTag[]
+  clues Clue[]
+
+  @@index([campaignId, archived])
+  @@index([campaignId, status])
+  @@map("mysteries")
+}
+
+model MysteryTag {
+  mysteryId String
+  mystery   Mystery @relation(fields: [mysteryId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([mysteryId, tagId])
+  @@index([tagId])
+  @@map("mystery_tags")
+}
+
+/// Pista de um Mistério: filho direto (FK real, mesmo padrão de Scene/
+/// ChecklistItem — seção 13.2), sem página própria (sempre editada inline na
+/// página do Mistério). `linkedEntityType`/`linkedEntityId` é um ponteiro
+/// polimórfico leve e opcional (resolvido por `resolveEntityRefs`, o mesmo
+/// resolvedor do sistema de Relacionamentos) — não uma linha em `Relationship`,
+/// porque uma pista não tem lado próprio para uma relação bidirecional
+/// aparecer (ver ARCHITECTURE.md, seção 16.4).
+model Clue {
+  id        String  @id @default(cuid())
+  mysteryId String
+  mystery   Mystery @relation(fields: [mysteryId], references: [id], onDelete: Cascade)
+
+  text       String
+  discovered Boolean @default(false)
+  order      Int     @default(0)
+
+  linkedEntityType RelatableEntityType?
+  linkedEntityId   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mysteryId, order])
+  @@map("clues")
 }

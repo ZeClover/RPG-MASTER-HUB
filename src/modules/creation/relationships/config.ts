@@ -1,4 +1,14 @@
-import { BookOpen, Scroll, ShieldAlert, MapPin, Shield, Users, type LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  History,
+  Scroll,
+  Search,
+  ShieldAlert,
+  MapPin,
+  Shield,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 
 import type { RelatableEntityType } from "@/generated/prisma/client";
 
@@ -10,6 +20,8 @@ export const ENTITY_TYPE_LABELS: Record<RelatableEntityType, string> = {
   QUEST: "Missão",
   PLOT_THREAD: "Trama",
   CONSEQUENCE: "Consequência",
+  TIMELINE_EVENT: "Evento",
+  MYSTERY: "Mistério",
 };
 
 export const ENTITY_TYPE_LABELS_PLURAL: Record<RelatableEntityType, string> = {
@@ -20,6 +32,8 @@ export const ENTITY_TYPE_LABELS_PLURAL: Record<RelatableEntityType, string> = {
   QUEST: "Missões",
   PLOT_THREAD: "Tramas",
   CONSEQUENCE: "Consequências",
+  TIMELINE_EVENT: "Eventos da linha do tempo",
+  MYSTERY: "Mistérios",
 };
 
 export const ENTITY_TYPE_ICONS: Record<RelatableEntityType, LucideIcon> = {
@@ -30,6 +44,8 @@ export const ENTITY_TYPE_ICONS: Record<RelatableEntityType, LucideIcon> = {
   QUEST: Scroll,
   PLOT_THREAD: Scroll,
   CONSEQUENCE: ShieldAlert,
+  TIMELINE_EVENT: History,
+  MYSTERY: Search,
 };
 
 export const ENTITY_TYPE_PATH: Record<RelatableEntityType, string> = {
@@ -40,6 +56,8 @@ export const ENTITY_TYPE_PATH: Record<RelatableEntityType, string> = {
   QUEST: "quests",
   PLOT_THREAD: "plot-threads",
   CONSEQUENCE: "consequences",
+  TIMELINE_EVENT: "timeline",
+  MYSTERY: "mysteries",
 };
 
 export const ENTITY_TYPE_OPTIONS = Object.entries(ENTITY_TYPE_LABELS) as [RelatableEntityType, string][];
