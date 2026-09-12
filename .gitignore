@@ -47,3 +47,6 @@ next-env.d.ts
 # local dev file uploads (production uses Vercel Blob)
 /public/uploads/*
 !/public/uploads/.gitkeep
+
+# Claude Code agent worktrees (isolated checkouts for background subagents)
+/.claude/worktrees/
