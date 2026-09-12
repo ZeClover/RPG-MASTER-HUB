@@ -6,6 +6,9 @@ import {
   ShieldAlert,
   MapPin,
   Shield,
+  Skull,
+  Sparkles,
+  Swords,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -22,6 +25,9 @@ export const ENTITY_TYPE_LABELS: Record<RelatableEntityType, string> = {
   CONSEQUENCE: "Consequência",
   TIMELINE_EVENT: "Evento",
   MYSTERY: "Mistério",
+  MONSTER: "Monstro",
+  ITEM: "Item",
+  POWER: "Poder",
 };
 
 export const ENTITY_TYPE_LABELS_PLURAL: Record<RelatableEntityType, string> = {
@@ -34,6 +40,9 @@ export const ENTITY_TYPE_LABELS_PLURAL: Record<RelatableEntityType, string> = {
   CONSEQUENCE: "Consequências",
   TIMELINE_EVENT: "Eventos da linha do tempo",
   MYSTERY: "Mistérios",
+  MONSTER: "Monstros",
+  ITEM: "Itens",
+  POWER: "Poderes",
 };
 
 export const ENTITY_TYPE_ICONS: Record<RelatableEntityType, LucideIcon> = {
@@ -46,6 +55,9 @@ export const ENTITY_TYPE_ICONS: Record<RelatableEntityType, LucideIcon> = {
   CONSEQUENCE: ShieldAlert,
   TIMELINE_EVENT: History,
   MYSTERY: Search,
+  MONSTER: Skull,
+  ITEM: Swords,
+  POWER: Sparkles,
 };
 
 export const ENTITY_TYPE_PATH: Record<RelatableEntityType, string> = {
@@ -58,6 +70,9 @@ export const ENTITY_TYPE_PATH: Record<RelatableEntityType, string> = {
   CONSEQUENCE: "consequences",
   TIMELINE_EVENT: "timeline",
   MYSTERY: "mysteries",
+  MONSTER: "monsters",
+  ITEM: "items",
+  POWER: "powers",
 };
 
 export const ENTITY_TYPE_OPTIONS = Object.entries(ENTITY_TYPE_LABELS) as [RelatableEntityType, string][];

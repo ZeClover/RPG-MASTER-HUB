@@ -99,6 +99,31 @@ export async function searchEntitiesByType(
       });
       return rows.map((row) => ({ id: row.id, name: row.title, imageUrl: null, archived: row.archived }));
     }
+    case "MONSTER": {
+      return db.monster.findMany({
+        where: { campaignId, id: idFilter, name: query ? { contains: query, mode: "insensitive" } : undefined },
+        take: 20,
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, imageUrl: true, archived: true },
+      });
+    }
+    case "ITEM": {
+      return db.item.findMany({
+        where: { campaignId, id: idFilter, name: query ? { contains: query, mode: "insensitive" } : undefined },
+        take: 20,
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, imageUrl: true, archived: true },
+      });
+    }
+    case "POWER": {
+      const rows = await db.power.findMany({
+        where: { campaignId, id: idFilter, name: query ? { contains: query, mode: "insensitive" } : undefined },
+        take: 20,
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, archived: true },
+      });
+      return rows.map((row) => ({ id: row.id, name: row.name, imageUrl: null, archived: row.archived }));
+    }
   }
 }
 
@@ -164,6 +189,24 @@ export async function resolveEntityRefs(
       select: { id: true, title: true, archived: true },
     });
     for (const row of rows) map.set(row.id, { type, id: row.id, name: row.title, imageUrl: null, archived: row.archived });
+  } else if (type === "MONSTER") {
+    const rows = await db.monster.findMany({
+      where: { campaignId, id: { in: ids } },
+      select: { id: true, name: true, imageUrl: true, archived: true },
+    });
+    for (const row of rows) map.set(row.id, { type, ...row });
+  } else if (type === "ITEM") {
+    const rows = await db.item.findMany({
+      where: { campaignId, id: { in: ids } },
+      select: { id: true, name: true, imageUrl: true, archived: true },
+    });
+    for (const row of rows) map.set(row.id, { type, ...row });
+  } else if (type === "POWER") {
+    const rows = await db.power.findMany({
+      where: { campaignId, id: { in: ids } },
+      select: { id: true, name: true, archived: true },
+    });
+    for (const row of rows) map.set(row.id, { type, id: row.id, name: row.name, imageUrl: null, archived: row.archived });
   }
 
   return map;

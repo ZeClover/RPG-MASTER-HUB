@@ -2,7 +2,17 @@ import "server-only";
 
 import { db } from "@/lib/db";
 
-export type SearchResultType = "NPC" | "LOCATION" | "FACTION" | "LORE_PAGE" | "IDEA" | "QUEST" | "PLOT_THREAD" | "CONSEQUENCE";
+export type SearchResultType =
+  | "NPC"
+  | "LOCATION"
+  | "FACTION"
+  | "LORE_PAGE"
+  | "IDEA"
+  | "QUEST"
+  | "PLOT_THREAD"
+  | "CONSEQUENCE"
+  | "MONSTER"
+  | "ITEM";
 
 export interface SearchResult {
   type: SearchResultType;
@@ -20,7 +30,7 @@ export async function searchCampaign(campaignId: string, query: string, limit = 
   const insensitive = { contains: trimmed, mode: "insensitive" as const };
   const byTag = { tags: { some: { tag: { name: insensitive } } } };
 
-  const [npcs, locations, factions, lorePages, ideas, quests, plotThreads, consequences] = await Promise.all([
+  const [npcs, locations, factions, lorePages, ideas, quests, plotThreads, consequences, monsters, items] = await Promise.all([
     db.npc.findMany({
       where: { campaignId, OR: [{ name: insensitive }, { personality: insensitive }, { history: insensitive }, byTag] },
       take: limit,
@@ -60,6 +70,16 @@ export async function searchCampaign(campaignId: string, query: string, limit = 
       where: { campaignId, OR: [{ title: insensitive }, { trigger: insensitive }, { description: insensitive }, byTag] },
       take: limit,
       select: { id: true, title: true },
+    }),
+    db.monster.findMany({
+      where: { campaignId, OR: [{ name: insensitive }, { description: insensitive }, byTag] },
+      take: limit,
+      select: { id: true, name: true, isBoss: true },
+    }),
+    db.item.findMany({
+      where: { campaignId, OR: [{ name: insensitive }, { description: insensitive }, { effect: insensitive }, byTag] },
+      take: limit,
+      select: { id: true, name: true, category: true },
     }),
   ]);
 
@@ -119,6 +139,20 @@ export async function searchCampaign(campaignId: string, query: string, limit = 
       title: consequence.title,
       subtitle: null,
       href: `/campaigns/${campaignId}/consequences/${consequence.id}`,
+    })),
+    ...monsters.map((monster) => ({
+      type: "MONSTER" as const,
+      id: monster.id,
+      title: monster.name,
+      subtitle: monster.isBoss ? "Chefe" : "Monstro",
+      href: `/campaigns/${campaignId}/monsters/${monster.id}`,
+    })),
+    ...items.map((item) => ({
+      type: "ITEM" as const,
+      id: item.id,
+      title: item.name,
+      subtitle: item.category,
+      href: `/campaigns/${campaignId}/items/${item.id}`,
     })),
   ];
 
