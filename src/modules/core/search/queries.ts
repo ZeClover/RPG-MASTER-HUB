@@ -12,7 +12,8 @@ export type SearchResultType =
   | "PLOT_THREAD"
   | "CONSEQUENCE"
   | "MONSTER"
-  | "ITEM";
+  | "ITEM"
+  | "POWER";
 
 export interface SearchResult {
   type: SearchResultType;
@@ -30,7 +31,7 @@ export async function searchCampaign(campaignId: string, query: string, limit = 
   const insensitive = { contains: trimmed, mode: "insensitive" as const };
   const byTag = { tags: { some: { tag: { name: insensitive } } } };
 
-  const [npcs, locations, factions, lorePages, ideas, quests, plotThreads, consequences, monsters, items] = await Promise.all([
+  const [npcs, locations, factions, lorePages, ideas, quests, plotThreads, consequences, monsters, items, powers] = await Promise.all([
     db.npc.findMany({
       where: { campaignId, OR: [{ name: insensitive }, { personality: insensitive }, { history: insensitive }, byTag] },
       take: limit,
@@ -80,6 +81,11 @@ export async function searchCampaign(campaignId: string, query: string, limit = 
       where: { campaignId, OR: [{ name: insensitive }, { description: insensitive }, { effect: insensitive }, byTag] },
       take: limit,
       select: { id: true, name: true, category: true },
+    }),
+    db.power.findMany({
+      where: { campaignId, OR: [{ name: insensitive }, { description: insensitive }, { effect: insensitive }, byTag] },
+      take: limit,
+      select: { id: true, name: true, cost: true },
     }),
   ]);
 
@@ -153,6 +159,13 @@ export async function searchCampaign(campaignId: string, query: string, limit = 
       title: item.name,
       subtitle: item.category,
       href: `/campaigns/${campaignId}/items/${item.id}`,
+    })),
+    ...powers.map((power) => ({
+      type: "POWER" as const,
+      id: power.id,
+      title: power.name,
+      subtitle: power.cost,
+      href: `/campaigns/${campaignId}/powers/${power.id}`,
     })),
   ];
 

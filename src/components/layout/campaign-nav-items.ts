@@ -18,6 +18,7 @@ import {
   Shield,
   ShieldAlert,
   Skull,
+  Sparkles,
   Swords,
   Tag,
   TreeDeciduous,
@@ -95,6 +96,7 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
 
   { key: "monsters", label: "Monstros", icon: Skull, href: (id) => `/campaigns/${id}/monsters`, section: "Jogo" },
   { key: "items", label: "Itens", icon: Package, href: (id) => `/campaigns/${id}/items`, section: "Jogo" },
+  { key: "powers", label: "Poderes", icon: Sparkles, href: (id) => `/campaigns/${id}/powers`, section: "Jogo" },
 
   { key: "audio", label: "Music/SFX Board", icon: Music, href: (id) => `/campaigns/${id}/audio`, section: "Áudio" },
   { key: "tools", label: "Ferramentas", icon: Wrench, comingSoonPhase: "Fase 6", section: "Em breve" },
