@@ -4,6 +4,7 @@ import {
   CalendarCheck,
   Dices,
   GitBranch,
+  History,
   LayoutDashboard,
   Lightbulb,
   MapPin,
@@ -64,6 +65,14 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
   },
 
   { key: "session", label: "Modo Sessão", icon: Swords, href: (id) => `/campaigns/${id}/session`, section: "Sessão" },
+
+  {
+    key: "timeline",
+    label: "Linha do Tempo",
+    icon: History,
+    href: (id) => `/campaigns/${id}/timeline`,
+    section: "Mundo",
+  },
 
   { key: "game", label: "Jogo", icon: Dices, comingSoonPhase: "Fase 6", section: "Em breve" },
   { key: "audio", label: "Music/SFX Board", icon: Music, href: (id) => `/campaigns/${id}/audio`, section: "Áudio" },
