@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
+  Archive,
   BookOpen,
   Brain,
   CalendarCheck,
@@ -120,6 +121,13 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
     label: "Campaign Health",
     icon: Activity,
     href: (id) => `/campaigns/${id}/health`,
+    section: "Inteligência",
+  },
+  {
+    key: "graveyard",
+    label: "Content Graveyard",
+    icon: Archive,
+    href: (id) => `/campaigns/${id}/graveyard`,
     section: "Inteligência",
   },
 
