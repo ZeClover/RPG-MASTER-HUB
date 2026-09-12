@@ -11,7 +11,7 @@ Dentro do app, o código se organiza em duas dimensões:
 - **`app/`** — apenas rotas. Layouts e páginas são finos: buscam sessão/dados via `modules/`, e delegam toda a lógica de domínio.
 - **`modules/<domínio>/<entidade>/`** — a lógica de negócio de verdade: `schemas.ts` (Zod), `actions.ts` (Server Actions), `queries.ts` (leituras). Mapeia diretamente para os domínios do briefing (CORE, CREATION, STORY, GAME, MEDIA, AUDIO, INTELLIGENCE, PLAYER).
 
-Até a Fase 0 só existia o módulo `core` (`auth`, `campaigns`, `permissions`). A Fase 1 introduziu o domínio `creation`: `modules/creation/<entidade>/` para cada tipo de conteúdo (NPCs, Locais, Facções, Lore, Ideias) mais dois módulos transversais que várias entidades compartilham (`tags`, `relationships`). A Fase 2 introduziu o domínio `preparation` (Sessões, Missões, Tramas, Consequências). A Fase 4 introduziu o domínio `audio` (Music/SFX Board — `modules/audio/`), mapeando para o domínio AUDIO do briefing. A Fase 5 introduziu o domínio `worldbuilding` (Timeline, Calendário, Relógios Narrativos, Family Tree, Mystery Board — `modules/worldbuilding/<entidade>/`), mapeando para o domínio STORY/World Building do briefing. Os domínios ainda não usados (GAME avançado, INTELLIGENCE, PLAYER) continuam sem pasta — mesma regra da Fase 0, pastas vazias não têm valor.
+Até a Fase 0 só existia o módulo `core` (`auth`, `campaigns`, `permissions`). A Fase 1 introduziu o domínio `creation`: `modules/creation/<entidade>/` para cada tipo de conteúdo (NPCs, Locais, Facções, Lore, Ideias) mais dois módulos transversais que várias entidades compartilham (`tags`, `relationships`). A Fase 2 introduziu o domínio `preparation` (Sessões, Missões, Tramas, Consequências). A Fase 4 introduziu o domínio `audio` (Music/SFX Board — `modules/audio/`), mapeando para o domínio AUDIO do briefing. A Fase 5 introduziu o domínio `worldbuilding` (Timeline, Calendário, Relógios Narrativos, Family Tree, Mystery Board — `modules/worldbuilding/<entidade>/`), mapeando para o domínio STORY/World Building do briefing. A Fase 6 introduziu o domínio `gametools` (Monster/Item/Power Forge, Table Builder, Loot Generator — `modules/gametools/<entidade>/`), mapeando para o domínio GAME avançado do briefing. Os domínios ainda não usados (INTELLIGENCE, PLAYER) continuam sem pasta — mesma regra da Fase 0, pastas vazias não têm valor.
 
 ## 2. Stack
 
@@ -52,6 +52,9 @@ src/
       session/                             — Modo Sessão: dados, registro, combate (Fase 3, offline real)
       audio/                                — Music/SFX Board (Fase 4)
       timeline/, clocks/, family-tree/, mysteries/ — World Building (Fase 5, Calendário embutido na Timeline)
+      monsters/, items/, powers/            — Forge + Power Builder (Fase 6)
+      tables/, loot/                        — Table Builder e Loot Generator (Fase 6, mesmo modelo RollTable
+                                               com kind GENERIC/LOOT — seção 17.3)
     api/
       auth/[...nextauth]/                 — handlers do Auth.js
       v1/uploads/                         — upload de imagens e áudio (autenticado, mínimo CO_GM — seção 15.11)
@@ -84,6 +87,13 @@ src/
       clocks/    — schemas, actions (incrementar/decrementar), queries de NarrativeClock (Fase 5)
       family-tree/ — schemas, actions de FamilyRelation, `tree.ts` (função pura que monta a árvore — Fase 5)
       mysteries/ — schemas, actions (Mystery + `clue-actions.ts`), queries de Mystery/Clue (Fase 5)
+    gametools/
+      monsters/  — schemas, actions (Monster + `attribute-actions.ts`), queries de Monster/MonsterAttribute (Fase 6)
+      items/     — schemas, actions, queries de Item (Fase 6)
+      powers/    — schemas, actions, queries de Power (Fase 6)
+      roll-tables/ — schemas, `roll.ts` (sorteio ponderado puro), `roll-actions.ts`, actions (RollTable +
+                     `entry-actions.ts`), queries — motor único por trás de Table Builder e Loot Generator,
+                     diferenciados só por `RollTableKind` (Fase 6, ver seção 17.3)
   components/
     ui/            — primitivas (Button, Card, Dialog, DropdownMenu, Tooltip, Avatar, Select, Popover...)
     layout/        — topbar, sidebar de campanha, menu de usuário
@@ -102,6 +112,11 @@ src/
     clocks/         — formulário de relógio, card com face em `conic-gradient` e incrementar/decrementar (Fase 5)
     family-tree/    — painel "Família" (NPC), seletor de NPC, diálogo de novo parentesco, árvore recursiva (Fase 5)
     mysteries/      — formulário de mistério, lista de pistas com vínculo opcional a entidade (Fase 5)
+    monsters/       — formulário de monstro, lista de atributos livres chave/valor (Fase 6)
+    items/          — formulário de item (Fase 6)
+    powers/         — formulário de poder (Fase 6)
+    roll-tables/    — formulário de tabela, lista de entradas (peso/chance), roller com botão "Rolar" e
+                      registro opcional no Session Log (Fase 6, reaproveitado por Table Builder e Loot Generator)
   lib/
     db.ts          — client Prisma singleton
     auth.ts        — config do Auth.js
@@ -213,6 +228,25 @@ Mystery, MysteryTag — título/descrição, status (OPEN|RESOLVED), visibility/
 Clue                — filho direto de Mystery (FK real, Cascade, mesmo padrão de Scene/ChecklistItem):
                        text/discovered/order, linkedEntityType?/linkedEntityId? (ponteiro polimórfico leve,
                        resolvido por resolveEntityRefs — seção 16.4, não uma linha em Relationship)
+```
+
+### Modelo de dados (Fase 6)
+
+```
+Monster, MonsterTag — monstro/chefe: nome, isBoss Boolean, description, canonStatus/visibility/favorite/
+                       archived/tags; participa de Relacionamentos (RelatableEntityType.MONSTER) — seção 17.1
+MonsterAttribute    — filho direto de Monster (FK real, Cascade, mesmo padrão de Scene/Clue): key/value/order,
+                       lista livre de atributos porque cada sistema de jogo nomeia estatísticas diferente (17.1)
+Item, ItemTag       — nome, category (tipo/raridade livre), description, effect, canonStatus/visibility/
+                       favorite/archived/tags; participa de Relacionamentos (RelatableEntityType.ITEM)
+Power, PowerTag     — nome, cost (texto livre, ex. "2 PM"), description, effect, canonStatus/visibility/
+                       favorite/archived/tags; participa de Relacionamentos (RelatableEntityType.POWER) — 17.2
+RollTableKind       — enum GENERIC | LOOT
+RollTable           — nome/descrição, kind RollTableKind, favorite/archived — sem visibility/tags/
+                       Relacionamentos (ferramenta de mesa do mestre, mesmo raciocínio de NarrativeClock — 17.3).
+                       Table Builder e Loot Generator são a MESMA tabela, diferenciada só por `kind` (seção 17.3)
+RollTableEntry      — filho direto de RollTable (FK real, Cascade): label/weight/order — `weight` substitui uma
+                       faixa numérica explícita (ex. "1-3"), o peso já representa o tamanho do intervalo (17.3)
 ```
 
 ## 5. Autenticação
@@ -474,7 +508,35 @@ A solução foi um meio-termo: `Clue.linkedEntityType`/`linkedEntityId` são um 
 
 `moveTimelineEventAction` copia exatamente o desenho de `moveSceneAction` (seção 13.2): troca o campo `order` entre a linha e a vizinha dentro de uma `$transaction`, sem biblioteca de drag-and-drop. A diferença é o volume esperado — uma sessão tem poucas cenas, mas uma campanha de meses pode acumular dezenas de eventos históricos. Julgamos que mover um evento várias posições de uma vez (arrastar do fim para o início) ainda é raro o bastante no uso real (a maioria dos eventos é adicionada perto de onde deveria ficar cronologicamente) para não justificar ainda uma biblioteca de arrastar-e-soltar nesta fase — se isso se provar frustrante em uso real, um passo intermediário mais barato que uma lib de D&D seria um campo "mover para o topo/fim" antes de considerar arrastar de verdade.
 
-## 17. Roadmap de fases
+## 17. Fase 6 — Decisões técnicas
+
+### 17.1 Monster/Boss Forge: um único modelo com `isBoss`, atributos como lista livre chave/valor
+
+O roadmap pedia "Monster/Boss/Item Forge" sem detalhar se Monstro e Chefe deveriam ser modelos separados. Optamos por um único modelo `Monster` com um campo `isBoss: Boolean` em vez de duas tabelas (`Monster`/`Boss`) ou um enum de categoria: um chefe **é** um monstro, só com um peso narrativo/mecânico maior — os dois compartilham 100% dos campos (nome, descrição, atributos, tags, relações), então duas tabelas duplicariam schema, queries e páginas só para diferenciar algo que um booleano já resolve. A lista de NPCs/monstros da campanha também fica mais simples de filtrar ("mostrar só chefes") com uma coluna do que com um `UNION` entre duas tabelas.
+
+O ponto mais importante da seção 14.3 (Combat Tracker sem regras de sistema específico) se aplica aqui com força total: estatísticas de monstro variam completamente entre sistemas — D&D tem "Classe de Armadura" e "Bônus de Proficiência", Fabula Ultima tem atributos diferentes, um homebrew pode ter qualquer coisa. Em vez de colunas fixas (`hp`, `attack`, `defense`...) que assumiriam um sistema, `MonsterAttribute` é uma lista de linhas chave/valor (`"HP" → "40"`, `"Ataque" → "+5"`) — filho direto de `Monster` (FK real, `onDelete: Cascade`), no mesmo padrão de `Clue`/`Scene` (seções 13.2/16.4): sem página própria, sempre editado inline na página do monstro, só adicionar/remover (sem edição in-place, mesmo corte de escopo da seção 16.4 para `Clue` — trocar um atributo errado é excluir e adicionar de novo). Isso é literalmente texto livre para estatísticas, não uma calculadora de regras de um sistema específico, exatamente como a seção 14.3 já pedia para o Combat Tracker.
+
+`Monster` entra em `RelatableEntityType` e ganha Tags/canonStatus/visibility como qualquer outra entidade de conteúdo (NPC/Local/Facção/Lore) — reaproveitar o eixo `CanonStatus` em vez de inventar um `MonsterStatus` novo é a mesma lógica da seção 12.2: um monstro pode estar em rascunho até ser aprovado pela mesa, ou virar `CANON` depois de aparecer numa sessão, exatamente como qualquer outro conteúdo da wiki.
+
+### 17.2 Item Forge e Power Builder: mesmo tratamento de "entidade de conteúdo", sem mecânica nova
+
+`Item` (nome, `category` como um único campo de texto livre cobrindo "tipo/raridade" — ex. "Arma rara", "Anel +1" — description, effect) e `Power` (nome, `cost` livre — ex. "2 PM", "Ação bônus" — description, effect) seguem o mesmo molde de `Monster`: `canonStatus`/`visibility`/`favorite`/`archived`/tags, participam de Relacionamentos, aparecem na Busca global e no Command Palette. Nenhum dos dois ganhou campos numéricos fixos (dano, bônus, alcance) pelo mesmo motivo da seção 17.1 — cada sistema de jogo modela isso de forma incompatível entre si, e o produto não assume nenhum.
+
+O roadmap perguntava explicitamente se Power deveria "ficar como uma lista solta por campanha" ou ser vinculável a Monstro/NPC/Item "via Relacionamentos". Escolhemos dar a `Power` o tratamento completo de entidade de conteúdo (não uma lista solta) porque o custo marginal era zero — o padrão já existe e é só mais um tipo no mesmo `switch` de `relationships/queries.ts` (validando de novo a seção 13.1: "o custo de adicionar um tipo novo é mesmo pequeno e localizado") — e o ganho é real: um mestre pode agora vincular "Sopro de Fogo" ao Dragão que o usa, sem inventar uma segunda forma de associação só para poderes. `category`/`cost` como um campo de texto livre só (em vez de dois campos, ex. `itemType` + `rarity`) é o corte de escopo mais simples que ainda atende ao pedido literal do roadmap ("tipo/raridade livre") sem multiplicar inputs por uma distinção que nem todo sistema faz.
+
+### 17.3 Table Builder é o motor; Loot Generator é a mesma tabela com `kind = LOOT`
+
+O roadmap já sugeria avaliar se Loot Generator deveria ser construído sobre Table Builder "já que uma tabela é 'de loot' só por convenção de uso" — avaliamos e a resposta foi sim, sem ressalvas. `RollTable`/`RollTableEntry` são um único par de modelos; o campo `kind` (`GENERIC` | `LOOT`) é a única diferença de schema, e existe só para separar as duas listagens (`/tables` mostra `kind: GENERIC`, `/loot` mostra `kind: LOOT`) — não existe nenhuma regra de negócio que dependa de `kind` além disso. As rotas, a terminologia da UI ("Entrada"/"Peso" na Table Builder vs. "Item"/"Chance" no Loot Generator) e um campo de quantidade no roller (Loot Generator sorteia N itens de uma vez; Table Builder sempre sorteia 1, o equivalente a "rolar o dado uma vez") são a única coisa que muda entre as duas features — a mesma lição da seção 13.1 aplicada a features inteiras, não só a um tipo de relacionamento: reaproveitar em vez de duplicar quando o modelo de dados é genuinamente o mesmo.
+
+A segunda decisão foi como representar "uma entrada de d20 associada a uma faixa 1-3" sem pedir ao mestre para digitar e validar faixas numéricas contra o dado sendo usado. Em vez de campos `rangeMin`/`rangeMax`, `RollTableEntry` só tem `weight: Int` — um peso relativo já representa o tamanho de um intervalo (peso 3 é equivalente a uma faixa de 3 números em um d20) sem exigir que a soma dos pesos bata com nenhum dado específico (d20, d100, ou uma tabela com 7 entradas que não corresponde a dado nenhum). Isso também é o que já cobre "peso/chance" pedido para o Loot Generator — um único campo serve as duas features sem ramificação de schema.
+
+O sorteio (`roll.ts`, `rollWeightedEntries`) é puro — sem I/O, mesma filosofia do `src/lib/dice.ts` da Fase 3 (seção 14.4) — e sorteia **com reposição** (a mesma entrada pode sair mais de uma vez numa rolagem de N itens): sem essa simplificação, "sortear sem repetir" exigiria remover e reponderar o pool a cada item sorteado, complexidade que nem um dado físico tem e que a maioria dos casos de uso reais (loot de uma masmorra, uma tabela de encontros) não pede. `rollRollTableAction` busca as entradas do banco a cada rolagem (nunca confia num estado já carregado no cliente) para nunca sortear com pesos desatualizados, e exige só o papel mínimo padrão (`PLAYER`) — rolar é leitura, não muda nada no banco, mesmo critério de qualquer página de detalhe da wiki.
+
+`RollTable` ficou de fora de `RelatableEntityType`/tags/visibility — mesmo raciocínio de `NarrativeClock` (seção 16.2) e `SessionPlan` (seção 13.5): é uma ferramenta de mesa do mestre ("rolar um evento aleatório", "sortear o loot de um baú"), não conteúdo compartilhável da wiki da campanha, então não se beneficia do peso extra desses três eixos.
+
+Por fim, o roteiro sugeria (opcionalmente) persistir o resultado de uma rolagem no Session Log. Implementamos isso como um botão "Registrar no Log da Sessão" no roller, que reaproveita `createLogEntryAction` (`modules/game/session-log/actions.ts`, já existente desde a Fase 3) com `type: "NOTE"` em vez de criar um novo `SessionLogEntryType` — o resultado de uma tabela é só mais uma anotação de texto, exatamente como uma rolagem de dado já é registrada como texto formatado (seção 14.4), sem justificar um tipo de entrada dedicado só para isso.
+
+## 18. Roadmap de fases
 
 | Fase | Escopo |
 | --- | --- |
@@ -484,7 +546,7 @@ A solução foi um meio-termo: `Clue.linkedEntityType`/`linkedEntityId` são um 
 | **3 — Modo Sessão** ✅ | Modo Sessão, Dice Roller, Session Log, Combat Tracker, Quick NPC, Panic Button — offline real prioritário aqui |
 | **4 — Áudio** ✅ | Music/SFX Board, os dois bots do Discord (trilha sonora + efeitos) |
 | **5 — World Building** ✅ | Timeline, Calendário, Relógios Narrativos, Family Tree, Mystery Board |
-| 6 — Game Tools | Monster/Boss/Item Forge, Power Builder, Loot Generator, Table Builder |
+| **6 — Game Tools** ✅ | Monster/Boss/Item Forge, Power Builder, Table Builder, Loot Generator (construído sobre o Table Builder) |
 | 7 — Inteligência da campanha | Campaign Brain avançado, Context Engine, Campaign Health, Content Graveyard |
 | 8 — IA | Lore Guardian, Canon Checker, Campaign Recall, Consequence Suggester (sempre copiloto, nunca autoridade) |
 | 9 — Jogadores | Player View, Player Knowledge, Handouts, Co-Mestres, permissões avançadas |
