@@ -3,24 +3,31 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import type { CampaignRole } from "@/generated/prisma/client";
 import { CAMPAIGN_NAV_ITEMS } from "@/components/layout/campaign-nav-items";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { roleAtLeast } from "@/lib/roles";
 
 interface CampaignSidebarProps {
   campaignId: string;
+  role: CampaignRole;
 }
 
-function NavEntries({ campaignId, orientation }: CampaignSidebarProps & { orientation: "vertical" | "horizontal" }) {
+function NavEntries({ campaignId, role, orientation }: CampaignSidebarProps & { orientation: "vertical" | "horizontal" }) {
   const pathname = usePathname();
+  // Player View (Fase 9): itens com `minRole` ficam fora da navegação para
+  // quem não tem o papel — não só desabilitados, já que não são "em breve",
+  // são "não é para você" (ex.: Membros, gestão só de CO_GM/OWNER).
+  const items = CAMPAIGN_NAV_ITEMS.filter((item) => roleAtLeast(role, item.minRole ?? "PLAYER"));
 
   return (
     <>
-      {CAMPAIGN_NAV_ITEMS.map((item, index) => {
+      {items.map((item, index) => {
         const href = item.href?.(campaignId);
         const isActive = Boolean(href) && (pathname === href || pathname.startsWith(`${href}/`));
         const Icon = item.icon;
-        const previousSection = index > 0 ? CAMPAIGN_NAV_ITEMS[index - 1].section : undefined;
+        const previousSection = index > 0 ? items[index - 1].section : undefined;
         const showSectionHeader = orientation === "vertical" && item.section !== previousSection;
 
         const content = (

@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { CampaignRole } from "@/generated/prisma/client";
 import {
   Activity,
   Archive,
@@ -32,6 +33,7 @@ import {
   Swords,
   Tag,
   TreeDeciduous,
+  UserCog,
   Users,
 } from "lucide-react";
 
@@ -42,6 +44,8 @@ export interface CampaignNavItem {
   href?: (campaignId: string) => string;
   comingSoonPhase?: string;
   section?: string;
+  /** Papel mínimo para o item aparecer na navegação (Fase 9). Padrão: PLAYER (todo mundo vê). */
+  minRole?: CampaignRole;
 }
 
 export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
@@ -164,7 +168,23 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
     section: "Copiloto",
   },
 
-  { key: "system", label: "Sistema", icon: Settings2, comingSoonPhase: "Fase 9", section: "Em breve" },
+  {
+    key: "system",
+    label: "Sistema",
+    icon: Settings2,
+    // Fase 9 encerra o roadmap original (ARCHITECTURE.md, seção 22) sem incluir
+    // "Sistema" — em vez de deixar uma referência a uma fase que já passou, o
+    // tooltip evita prometer um número de fase que ninguém decidiu ainda.
+    comingSoonPhase: "próxima leva de fases",
+    section: "Em breve",
+  },
 
+  {
+    key: "members",
+    label: "Membros",
+    icon: UserCog,
+    href: (id) => `/campaigns/${id}/members`,
+    minRole: "CO_GM",
+  },
   { key: "settings", label: "Configurações", icon: Settings, href: (id) => `/campaigns/${id}/settings` },
 ];

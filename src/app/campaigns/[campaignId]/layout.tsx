@@ -15,16 +15,16 @@ export default async function CampaignLayout({ children, params }: CampaignLayou
   const { campaignId } = await params;
   const user = await requireUser();
 
-  let campaign;
+  let campaign, role;
   try {
-    ({ campaign } = await getCampaignForUser(user.id, campaignId));
+    ({ campaign, role } = await getCampaignForUser(user.id, campaignId));
   } catch (error) {
     if (error instanceof CampaignAccessError) notFound();
     throw error;
   }
 
   return (
-    <CampaignShell campaign={campaign} user={user}>
+    <CampaignShell campaign={campaign} user={user} role={role}>
       {children}
     </CampaignShell>
   );
