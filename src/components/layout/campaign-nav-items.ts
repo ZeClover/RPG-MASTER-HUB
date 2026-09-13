@@ -8,6 +8,7 @@ import {
   CalendarCheck,
   Clock,
   Dices,
+  FileText,
   Gem,
   GitBranch,
   History,
@@ -83,6 +84,13 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
   },
 
   { key: "session", label: "Modo Sessão", icon: Swords, href: (id) => `/campaigns/${id}/session`, section: "Sessão" },
+  {
+    key: "handouts",
+    label: "Handouts",
+    icon: FileText,
+    href: (id) => `/campaigns/${id}/handouts`,
+    section: "Sessão",
+  },
 
   {
     key: "timeline",
