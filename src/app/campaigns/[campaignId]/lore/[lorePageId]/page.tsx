@@ -12,6 +12,7 @@ import {
 import { listRelationshipsForEntity } from "@/modules/creation/relationships/queries";
 import { CanonStatusBadge } from "@/components/wiki/canon-status-badge";
 import { VisibilityBadge } from "@/components/wiki/visibility-badge";
+import { RevealToPlayersButton } from "@/components/players/reveal-to-players-button";
 import { TagBadgeList } from "@/components/wiki/tag-badge-list";
 import { RelatedEntitiesPanel } from "@/components/wiki/related-entities-panel";
 import { EntityActionsMenu } from "@/components/wiki/entity-actions-menu";
@@ -54,6 +55,9 @@ export default async function LorePageDetail({ params }: LorePageDetailProps) {
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <CanonStatusBadge status={lorePage.canonStatus} />
             <VisibilityBadge visibility={lorePage.visibility} />
+            {canManage && lorePage.visibility === "GM_ONLY" && (
+              <RevealToPlayersButton campaignId={campaignId} entityType="LORE_PAGE" entityId={lorePageId} />
+            )}
           </div>
         </div>
 

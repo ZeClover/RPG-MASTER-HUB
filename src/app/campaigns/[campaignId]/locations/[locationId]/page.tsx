@@ -17,6 +17,7 @@ import {
 import { listRelationshipsForEntity } from "@/modules/creation/relationships/queries";
 import { CanonStatusBadge } from "@/components/wiki/canon-status-badge";
 import { VisibilityBadge } from "@/components/wiki/visibility-badge";
+import { RevealToPlayersButton } from "@/components/players/reveal-to-players-button";
 import { TagBadgeList } from "@/components/wiki/tag-badge-list";
 import { RelatedEntitiesPanel } from "@/components/wiki/related-entities-panel";
 import { EntityActionsMenu } from "@/components/wiki/entity-actions-menu";
@@ -41,6 +42,7 @@ export default async function LocationDetailPage({ params }: LocationDetailPageP
   const location = await getLocationForUser(user.id, campaignId, locationId);
   if (!location) notFound();
   const { role } = await requireCampaignAccess(user.id, campaignId);
+  const canManage = role !== "PLAYER";
 
   const [breadcrumb, children, relationships] = await Promise.all([
     getLocationBreadcrumb(locationId, role),
@@ -84,20 +86,25 @@ export default async function LocationDetailPage({ params }: LocationDetailPageP
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <CanonStatusBadge status={location.canonStatus} />
               <VisibilityBadge visibility={location.visibility} />
+              {canManage && location.visibility === "GM_ONLY" && (
+                <RevealToPlayersButton campaignId={campaignId} entityType="LOCATION" entityId={locationId} />
+              )}
             </div>
           </div>
         </div>
 
-        <EntityActionsMenu
-          editHref={`/campaigns/${campaignId}/locations/${locationId}/edit`}
-          favorite={location.favorite}
-          archived={location.archived}
-          onToggleFavorite={toggleLocationFavoriteAction.bind(null, campaignId, locationId)}
-          onToggleArchived={toggleLocationArchivedAction.bind(null, campaignId, locationId)}
-          onDelete={deleteLocationAction.bind(null, campaignId, locationId)}
-          deleteTitle={`Excluir "${location.name}"?`}
-          deleteDescription="Esta ação não pode ser desfeita. Relações com este local também serão removidas."
-        />
+        {canManage && (
+          <EntityActionsMenu
+            editHref={`/campaigns/${campaignId}/locations/${locationId}/edit`}
+            favorite={location.favorite}
+            archived={location.archived}
+            onToggleFavorite={toggleLocationFavoriteAction.bind(null, campaignId, locationId)}
+            onToggleArchived={toggleLocationArchivedAction.bind(null, campaignId, locationId)}
+            onDelete={deleteLocationAction.bind(null, campaignId, locationId)}
+            deleteTitle={`Excluir "${location.name}"?`}
+            deleteDescription="Esta ação não pode ser desfeita. Relações com este local também serão removidas."
+          />
+        )}
       </div>
 
       {location.tags.length > 0 && (
@@ -147,6 +154,7 @@ export default async function LocationDetailPage({ params }: LocationDetailPageP
         entityType="LOCATION"
         entityId={locationId}
         relationships={relationships}
+        canManage={canManage}
       />
     </div>
   );

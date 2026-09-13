@@ -14,6 +14,7 @@ import { listRelationshipsForEntity } from "@/modules/creation/relationships/que
 import { Badge } from "@/components/ui/badge";
 import { QUEST_STATUS_LABELS, QUEST_STATUS_BADGE_VARIANT } from "@/components/wiki/status-config";
 import { VisibilityBadge } from "@/components/wiki/visibility-badge";
+import { RevealToPlayersButton } from "@/components/players/reveal-to-players-button";
 import { TagBadgeList } from "@/components/wiki/tag-badge-list";
 import { RelatedEntitiesPanel } from "@/components/wiki/related-entities-panel";
 import { EntityActionsMenu } from "@/components/wiki/entity-actions-menu";
@@ -59,6 +60,9 @@ export default async function QuestDetailPage({ params }: QuestDetailPageProps) 
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <Badge variant={QUEST_STATUS_BADGE_VARIANT[quest.status]}>{QUEST_STATUS_LABELS[quest.status]}</Badge>
               <VisibilityBadge visibility={quest.visibility} />
+              {canManage && quest.visibility === "GM_ONLY" && (
+                <RevealToPlayersButton campaignId={campaignId} entityType="QUEST" entityId={questId} />
+              )}
             </div>
           </div>
         </div>

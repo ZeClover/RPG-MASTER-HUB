@@ -15,6 +15,7 @@ import { RELATIONSHIP_IMPORTANCE_LABELS } from "@/modules/creation/relationships
 import { PLOT_THREAD_STATUS_BADGE_VARIANT, PLOT_THREAD_STATUS_LABELS } from "@/components/wiki/status-config";
 import { Badge } from "@/components/ui/badge";
 import { VisibilityBadge } from "@/components/wiki/visibility-badge";
+import { RevealToPlayersButton } from "@/components/players/reveal-to-players-button";
 import { TagBadgeList } from "@/components/wiki/tag-badge-list";
 import { RelatedEntitiesPanel } from "@/components/wiki/related-entities-panel";
 import { EntityActionsMenu } from "@/components/wiki/entity-actions-menu";
@@ -61,6 +62,9 @@ export default async function PlotThreadDetailPage({ params }: PlotThreadDetailP
                 {RELATIONSHIP_IMPORTANCE_LABELS[plotThread.importance]}
               </span>
               <VisibilityBadge visibility={plotThread.visibility} />
+              {canManage && plotThread.visibility === "GM_ONLY" && (
+                <RevealToPlayersButton campaignId={campaignId} entityType="PLOT_THREAD" entityId={plotThreadId} />
+              )}
             </div>
           </div>
         </div>

@@ -14,6 +14,7 @@ import { listRelationshipsForEntity } from "@/modules/creation/relationships/que
 import { Badge } from "@/components/ui/badge";
 import { MYSTERY_STATUS_LABELS, MYSTERY_STATUS_BADGE_VARIANT } from "@/components/wiki/status-config";
 import { VisibilityBadge } from "@/components/wiki/visibility-badge";
+import { RevealToPlayersButton } from "@/components/players/reveal-to-players-button";
 import { TagBadgeList } from "@/components/wiki/tag-badge-list";
 import { RelatedEntitiesPanel } from "@/components/wiki/related-entities-panel";
 import { EntityActionsMenu } from "@/components/wiki/entity-actions-menu";
@@ -61,6 +62,9 @@ export default async function MysteryDetailPage({ params }: MysteryDetailPagePro
                 {MYSTERY_STATUS_LABELS[mystery.status]}
               </Badge>
               <VisibilityBadge visibility={mystery.visibility} />
+              {canManage && mystery.visibility === "GM_ONLY" && (
+                <RevealToPlayersButton campaignId={campaignId} entityType="MYSTERY" entityId={mysteryId} />
+              )}
             </div>
           </div>
         </div>

@@ -10,6 +10,7 @@ import { listFamilyRelationsForNpc } from "@/modules/worldbuilding/family-tree/q
 import { groupFamilyRelationsForNpc } from "@/modules/worldbuilding/family-tree/tree";
 import { CanonStatusBadge } from "@/components/wiki/canon-status-badge";
 import { VisibilityBadge } from "@/components/wiki/visibility-badge";
+import { RevealToPlayersButton } from "@/components/players/reveal-to-players-button";
 import { TagBadgeList } from "@/components/wiki/tag-badge-list";
 import { RelatedEntitiesPanel } from "@/components/wiki/related-entities-panel";
 import { EntityActionsMenu } from "@/components/wiki/entity-actions-menu";
@@ -71,6 +72,9 @@ export default async function NpcDetailPage({ params }: NpcDetailPageProps) {
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <CanonStatusBadge status={npc.canonStatus} />
               <VisibilityBadge visibility={npc.visibility} />
+              {canManage && npc.visibility === "GM_ONLY" && (
+                <RevealToPlayersButton campaignId={campaignId} entityType="NPC" entityId={npcId} />
+              )}
             </div>
           </div>
         </div>

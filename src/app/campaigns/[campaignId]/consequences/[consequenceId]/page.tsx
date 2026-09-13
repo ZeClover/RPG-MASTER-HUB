@@ -14,6 +14,7 @@ import { listRelationshipsForEntity } from "@/modules/creation/relationships/que
 import { Badge } from "@/components/ui/badge";
 import { CONSEQUENCE_STATUS_LABELS, CONSEQUENCE_STATUS_BADGE_VARIANT } from "@/components/wiki/status-config";
 import { VisibilityBadge } from "@/components/wiki/visibility-badge";
+import { RevealToPlayersButton } from "@/components/players/reveal-to-players-button";
 import { TagBadgeList } from "@/components/wiki/tag-badge-list";
 import { RelatedEntitiesPanel } from "@/components/wiki/related-entities-panel";
 import { EntityActionsMenu } from "@/components/wiki/entity-actions-menu";
@@ -60,6 +61,9 @@ export default async function ConsequenceDetailPage({ params }: ConsequenceDetai
                 {CONSEQUENCE_STATUS_LABELS[consequence.status]}
               </Badge>
               <VisibilityBadge visibility={consequence.visibility} />
+              {canManage && consequence.visibility === "GM_ONLY" && (
+                <RevealToPlayersButton campaignId={campaignId} entityType="CONSEQUENCE" entityId={consequenceId} />
+              )}
             </div>
           </div>
         </div>
