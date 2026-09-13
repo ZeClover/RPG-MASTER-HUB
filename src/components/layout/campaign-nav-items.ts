@@ -25,6 +25,7 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
+  Shuffle,
   Skull,
   Sparkles,
   Stamp,
@@ -153,6 +154,13 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
     label: "Campaign Recall",
     icon: NotebookText,
     href: (id) => `/campaigns/${id}/campaign-recall`,
+    section: "Copiloto",
+  },
+  {
+    key: "consequence-suggester",
+    label: "Consequence Suggester",
+    icon: Shuffle,
+    href: (id) => `/campaigns/${id}/consequence-suggester`,
     section: "Copiloto",
   },
 
