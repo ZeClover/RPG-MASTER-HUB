@@ -30,8 +30,9 @@ export default async function QuestsPage({ params, searchParams }: QuestsPagePro
   const sp = await searchParams;
   const user = await requireUser();
 
+  let role;
   try {
-    await requireCampaignAccess(user.id, campaignId);
+    ({ role } = await requireCampaignAccess(user.id, campaignId));
   } catch (error) {
     if (error instanceof CampaignAccessError) notFound();
     throw error;
@@ -47,7 +48,7 @@ export default async function QuestsPage({ params, searchParams }: QuestsPagePro
   const archived = sp.archived === "1";
 
   const [quests, tags] = await Promise.all([
-    listQuests(campaignId, { q, tag, status, favorite, archived }),
+    listQuests(campaignId, { q, tag, status, favorite, archived }, role),
     listTagsForCampaign(campaignId),
   ]);
 

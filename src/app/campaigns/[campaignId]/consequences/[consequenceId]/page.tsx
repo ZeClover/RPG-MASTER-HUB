@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 
 import { requireUser } from "@/modules/core/auth/session";
+import { requireCampaignAccess } from "@/modules/core/permissions";
 import { getConsequenceForUser } from "@/modules/preparation/consequences/queries";
 import {
   deleteConsequenceAction,
@@ -34,8 +35,10 @@ export default async function ConsequenceDetailPage({ params }: ConsequenceDetai
   const user = await requireUser();
   const consequence = await getConsequenceForUser(user.id, campaignId, consequenceId);
   if (!consequence) notFound();
+  const { role } = await requireCampaignAccess(user.id, campaignId);
+  const canManage = role !== "PLAYER";
 
-  const relationships = await listRelationshipsForEntity(campaignId, "CONSEQUENCE", consequenceId);
+  const relationships = await listRelationshipsForEntity(campaignId, "CONSEQUENCE", consequenceId, role);
 
   const fields: { label: string; value: string | null }[] = [
     { label: "Gatilho", value: consequence.trigger },
@@ -61,16 +64,18 @@ export default async function ConsequenceDetailPage({ params }: ConsequenceDetai
           </div>
         </div>
 
-        <EntityActionsMenu
-          editHref={`/campaigns/${campaignId}/consequences/${consequenceId}/edit`}
-          favorite={consequence.favorite}
-          archived={consequence.archived}
-          onToggleFavorite={toggleConsequenceFavoriteAction.bind(null, campaignId, consequenceId)}
-          onToggleArchived={toggleConsequenceArchivedAction.bind(null, campaignId, consequenceId)}
-          onDelete={deleteConsequenceAction.bind(null, campaignId, consequenceId)}
-          deleteTitle={`Excluir "${consequence.title}"?`}
-          deleteDescription="Esta ação não pode ser desfeita. Relações com esta consequência também serão removidas."
-        />
+        {canManage && (
+          <EntityActionsMenu
+            editHref={`/campaigns/${campaignId}/consequences/${consequenceId}/edit`}
+            favorite={consequence.favorite}
+            archived={consequence.archived}
+            onToggleFavorite={toggleConsequenceFavoriteAction.bind(null, campaignId, consequenceId)}
+            onToggleArchived={toggleConsequenceArchivedAction.bind(null, campaignId, consequenceId)}
+            onDelete={deleteConsequenceAction.bind(null, campaignId, consequenceId)}
+            deleteTitle={`Excluir "${consequence.title}"?`}
+            deleteDescription="Esta ação não pode ser desfeita. Relações com esta consequência também serão removidas."
+          />
+        )}
       </div>
 
       {consequence.tags.length > 0 && (
@@ -101,6 +106,7 @@ export default async function ConsequenceDetailPage({ params }: ConsequenceDetai
         entityType="CONSEQUENCE"
         entityId={consequenceId}
         relationships={relationships}
+      canManage={canManage}
       />
     </div>
   );

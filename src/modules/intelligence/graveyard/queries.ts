@@ -41,6 +41,13 @@ export interface GraveyardItem {
  * cada `list*` chamada aqui já existe desde a fase que criou aquele tipo,
  * só com `{ archived: true }` em vez do padrão `false`. Nenhuma query nova
  * de leitura por tipo, só a orquestração + normalização.
+ *
+ * Fase 9: os `list*` de entidades com `visibility` agora exigem um papel para
+ * decidir o filtro (ver `visibilityWhereForRole`). O literal `"CO_GM"` aqui
+ * (em vez de receber o papel de quem chamou) é deliberado — o Graveyard é
+ * ferramenta de limpeza do mestre e a própria página já exige CO_GM para
+ * entrar (seção 21.5); ver tudo arquivado, independente de `visibility`, é o
+ * comportamento certo aqui, não um vazamento.
  */
 export async function listArchivedContent(campaignId: string): Promise<GraveyardItem[]> {
   const [
@@ -62,20 +69,20 @@ export async function listArchivedContent(campaignId: string): Promise<Graveyard
     rollTablesLoot,
     sessionPlans,
   ] = await Promise.all([
-    listNpcs(campaignId, { archived: true }),
-    listLocations(campaignId, { archived: true }),
-    listFactions(campaignId, { archived: true }),
-    listLorePages(campaignId, { archived: true }),
+    listNpcs(campaignId, { archived: true }, "CO_GM"),
+    listLocations(campaignId, { archived: true }, "CO_GM"),
+    listFactions(campaignId, { archived: true }, "CO_GM"),
+    listLorePages(campaignId, { archived: true }, "CO_GM"),
     listIdeas(campaignId, { archived: true }),
-    listQuests(campaignId, { archived: true }),
-    listPlotThreads(campaignId, { archived: true }),
-    listConsequences(campaignId, { archived: true }),
-    listTimelineEvents(campaignId, { archived: true }),
+    listQuests(campaignId, { archived: true }, "CO_GM"),
+    listPlotThreads(campaignId, { archived: true }, "CO_GM"),
+    listConsequences(campaignId, { archived: true }, "CO_GM"),
+    listTimelineEvents(campaignId, { archived: true }, "CO_GM"),
     listNarrativeClocks(campaignId, { archived: true }),
-    listMysteries(campaignId, { archived: true }),
-    listMonsters(campaignId, { archived: true }),
-    listItems(campaignId, { archived: true }),
-    listPowers(campaignId, { archived: true }),
+    listMysteries(campaignId, { archived: true }, "CO_GM"),
+    listMonsters(campaignId, { archived: true }, "CO_GM"),
+    listItems(campaignId, { archived: true }, "CO_GM"),
+    listPowers(campaignId, { archived: true }, "CO_GM"),
     listRollTables(campaignId, "GENERIC", { archived: true }),
     listRollTables(campaignId, "LOOT", { archived: true }),
     listSessionPlans(campaignId, { archived: true }),

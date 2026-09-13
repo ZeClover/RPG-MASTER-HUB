@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { requireUser } from "@/modules/core/auth/session";
+import { requireCampaignAccess } from "@/modules/core/permissions";
 import { getItemForUser } from "@/modules/gametools/items/queries";
 import { deleteItemAction, toggleItemArchivedAction, toggleItemFavoriteAction } from "@/modules/gametools/items/actions";
 import { listRelationshipsForEntity } from "@/modules/creation/relationships/queries";
@@ -28,8 +29,10 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
   const user = await requireUser();
   const item = await getItemForUser(user.id, campaignId, itemId);
   if (!item) notFound();
+  const { role } = await requireCampaignAccess(user.id, campaignId);
+  const canManage = role !== "PLAYER";
 
-  const relationships = await listRelationshipsForEntity(campaignId, "ITEM", itemId);
+  const relationships = await listRelationshipsForEntity(campaignId, "ITEM", itemId, role);
 
   const fields: { label: string; value: string | null }[] = [
     { label: "Descrição", value: item.description },
@@ -59,16 +62,18 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
           </div>
         </div>
 
-        <EntityActionsMenu
-          editHref={`/campaigns/${campaignId}/items/${itemId}/edit`}
-          favorite={item.favorite}
-          archived={item.archived}
-          onToggleFavorite={toggleItemFavoriteAction.bind(null, campaignId, itemId)}
-          onToggleArchived={toggleItemArchivedAction.bind(null, campaignId, itemId)}
-          onDelete={deleteItemAction.bind(null, campaignId, itemId)}
-          deleteTitle={`Excluir "${item.name}"?`}
-          deleteDescription="Esta ação não pode ser desfeita. Relações com este item também serão removidas."
-        />
+        {canManage && (
+          <EntityActionsMenu
+            editHref={`/campaigns/${campaignId}/items/${itemId}/edit`}
+            favorite={item.favorite}
+            archived={item.archived}
+            onToggleFavorite={toggleItemFavoriteAction.bind(null, campaignId, itemId)}
+            onToggleArchived={toggleItemArchivedAction.bind(null, campaignId, itemId)}
+            onDelete={deleteItemAction.bind(null, campaignId, itemId)}
+            deleteTitle={`Excluir "${item.name}"?`}
+            deleteDescription="Esta ação não pode ser desfeita. Relações com este item também serão removidas."
+          />
+        )}
       </div>
 
       {item.tags.length > 0 && (
@@ -94,7 +99,13 @@ export default async function ItemDetailPage({ params }: ItemDetailPageProps) {
         )}
       </div>
 
-      <RelatedEntitiesPanel campaignId={campaignId} entityType="ITEM" entityId={itemId} relationships={relationships} />
+      <RelatedEntitiesPanel
+        campaignId={campaignId}
+        entityType="ITEM"
+        entityId={itemId}
+        relationships={relationships}
+        canManage={canManage}
+      />
     </div>
   );
 }

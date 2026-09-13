@@ -30,8 +30,9 @@ export default async function LocationsPage({ params, searchParams }: LocationsP
   const sp = await searchParams;
   const user = await requireUser();
 
+  let role;
   try {
-    await requireCampaignAccess(user.id, campaignId);
+    ({ role } = await requireCampaignAccess(user.id, campaignId));
   } catch (error) {
     if (error instanceof CampaignAccessError) notFound();
     throw error;
@@ -47,7 +48,7 @@ export default async function LocationsPage({ params, searchParams }: LocationsP
   const archived = sp.archived === "1";
 
   const [locations, tags] = await Promise.all([
-    listLocations(campaignId, { q, tag, status, favorite, archived }),
+    listLocations(campaignId, { q, tag, status, favorite, archived }, role),
     listTagsForCampaign(campaignId),
   ]);
 

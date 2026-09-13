@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { requireUser } from "@/modules/core/auth/session";
+import { requireCampaignAccess } from "@/modules/core/permissions";
 import { getNpcForUser } from "@/modules/creation/npcs/queries";
 import { deleteNpcAction, toggleNpcArchivedAction, toggleNpcFavoriteAction } from "@/modules/creation/npcs/actions";
 import { listRelationshipsForEntity } from "@/modules/creation/relationships/queries";
@@ -31,9 +32,11 @@ export default async function NpcDetailPage({ params }: NpcDetailPageProps) {
   const user = await requireUser();
   const npc = await getNpcForUser(user.id, campaignId, npcId);
   if (!npc) notFound();
+  const { role } = await requireCampaignAccess(user.id, campaignId);
+  const canManage = role !== "PLAYER";
 
-  const relationships = await listRelationshipsForEntity(campaignId, "NPC", npcId);
-  const familyRelations = await listFamilyRelationsForNpc(campaignId, npcId);
+  const relationships = await listRelationshipsForEntity(campaignId, "NPC", npcId, role);
+  const familyRelations = await listFamilyRelationsForNpc(campaignId, npcId, role);
   const familyGroups = groupFamilyRelationsForNpc(npcId, familyRelations);
 
   const fields: { label: string; value: string | null }[] = [
@@ -72,16 +75,18 @@ export default async function NpcDetailPage({ params }: NpcDetailPageProps) {
           </div>
         </div>
 
-        <EntityActionsMenu
-          editHref={`/campaigns/${campaignId}/npcs/${npcId}/edit`}
-          favorite={npc.favorite}
-          archived={npc.archived}
-          onToggleFavorite={toggleNpcFavoriteAction.bind(null, campaignId, npcId)}
-          onToggleArchived={toggleNpcArchivedAction.bind(null, campaignId, npcId)}
-          onDelete={deleteNpcAction.bind(null, campaignId, npcId)}
-          deleteTitle={`Excluir "${npc.name}"?`}
-          deleteDescription="Esta ação não pode ser desfeita. Relações com este NPC também serão removidas."
-        />
+        {canManage && (
+          <EntityActionsMenu
+            editHref={`/campaigns/${campaignId}/npcs/${npcId}/edit`}
+            favorite={npc.favorite}
+            archived={npc.archived}
+            onToggleFavorite={toggleNpcFavoriteAction.bind(null, campaignId, npcId)}
+            onToggleArchived={toggleNpcArchivedAction.bind(null, campaignId, npcId)}
+            onDelete={deleteNpcAction.bind(null, campaignId, npcId)}
+            deleteTitle={`Excluir "${npc.name}"?`}
+            deleteDescription="Esta ação não pode ser desfeita. Relações com este NPC também serão removidas."
+          />
+        )}
       </div>
 
       {npc.tags.length > 0 && (
@@ -107,9 +112,15 @@ export default async function NpcDetailPage({ params }: NpcDetailPageProps) {
         )}
       </div>
 
-      <FamilyPanel campaignId={campaignId} npcId={npcId} npcName={npc.name} groups={familyGroups} />
+      <FamilyPanel campaignId={campaignId} npcId={npcId} npcName={npc.name} groups={familyGroups} canManage={canManage} />
 
-      <RelatedEntitiesPanel campaignId={campaignId} entityType="NPC" entityId={npcId} relationships={relationships} />
+      <RelatedEntitiesPanel
+        campaignId={campaignId}
+        entityType="NPC"
+        entityId={npcId}
+        relationships={relationships}
+        canManage={canManage}
+      />
     </div>
   );
 }

@@ -26,8 +26,9 @@ export default async function TimelinePage({ params, searchParams }: TimelinePag
   const sp = await searchParams;
   const user = await requireUser();
 
+  let role;
   try {
-    await requireCampaignAccess(user.id, campaignId);
+    ({ role } = await requireCampaignAccess(user.id, campaignId));
   } catch (error) {
     if (error instanceof CampaignAccessError) notFound();
     throw error;
@@ -39,7 +40,7 @@ export default async function TimelinePage({ params, searchParams }: TimelinePag
   const archived = sp.archived === "1";
 
   const [events, tags, calendar] = await Promise.all([
-    listTimelineEvents(campaignId, { q, tag, favorite, archived }),
+    listTimelineEvents(campaignId, { q, tag, favorite, archived }, role),
     listTagsForCampaign(campaignId),
     getCampaignCalendar(user.id, campaignId),
   ]);

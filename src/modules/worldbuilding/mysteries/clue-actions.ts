@@ -53,6 +53,28 @@ export async function toggleClueDiscoveredAction(campaignId: string, mysteryId: 
   revalidateMystery(campaignId, mysteryId);
 }
 
+/**
+ * Player Knowledge (Fase 9, ver ARCHITECTURE.md, seção 21.3): liga/desliga
+ * `sharedWithPlayers`, o flag que de fato controla o que um PLAYER vê nesta
+ * lista de pistas — independente de `discovered`, que é só o controle
+ * interno do mestre.
+ */
+export async function toggleClueSharedAction(campaignId: string, mysteryId: string, clueId: string) {
+  const user = await requireUser();
+  try {
+    await requireCampaignAccess(user.id, campaignId, "CO_GM");
+  } catch (error) {
+    if (error instanceof CampaignAccessError) return;
+    throw error;
+  }
+
+  const clue = await db.clue.findFirst({ where: { id: clueId, mysteryId }, select: { sharedWithPlayers: true } });
+  if (!clue) return;
+
+  await db.clue.update({ where: { id: clueId }, data: { sharedWithPlayers: !clue.sharedWithPlayers } });
+  revalidateMystery(campaignId, mysteryId);
+}
+
 export async function linkClueEntityAction(
   campaignId: string,
   mysteryId: string,

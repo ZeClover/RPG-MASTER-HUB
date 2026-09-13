@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireUser } from "@/modules/core/auth/session";
+import { requireCampaignAccess } from "@/modules/core/permissions";
 import {
   getLocationBreadcrumb,
   getLocationForUser,
@@ -39,11 +40,12 @@ export default async function LocationDetailPage({ params }: LocationDetailPageP
   const user = await requireUser();
   const location = await getLocationForUser(user.id, campaignId, locationId);
   if (!location) notFound();
+  const { role } = await requireCampaignAccess(user.id, campaignId);
 
   const [breadcrumb, children, relationships] = await Promise.all([
-    getLocationBreadcrumb(locationId),
-    listLocationChildren(campaignId, locationId),
-    listRelationshipsForEntity(campaignId, "LOCATION", locationId),
+    getLocationBreadcrumb(locationId, role),
+    listLocationChildren(campaignId, locationId, role),
+    listRelationshipsForEntity(campaignId, "LOCATION", locationId, role),
   ]);
 
   const childEntities = children.map((child) => ({

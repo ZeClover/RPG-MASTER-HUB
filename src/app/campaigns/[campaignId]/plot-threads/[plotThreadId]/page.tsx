@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Scroll } from "lucide-react";
 
 import { requireUser } from "@/modules/core/auth/session";
+import { requireCampaignAccess } from "@/modules/core/permissions";
 import { getPlotThreadForUser } from "@/modules/preparation/plot-threads/queries";
 import {
   deletePlotThreadAction,
@@ -35,8 +36,10 @@ export default async function PlotThreadDetailPage({ params }: PlotThreadDetailP
   const user = await requireUser();
   const plotThread = await getPlotThreadForUser(user.id, campaignId, plotThreadId);
   if (!plotThread) notFound();
+  const { role } = await requireCampaignAccess(user.id, campaignId);
+  const canManage = role !== "PLAYER";
 
-  const relationships = await listRelationshipsForEntity(campaignId, "PLOT_THREAD", plotThreadId);
+  const relationships = await listRelationshipsForEntity(campaignId, "PLOT_THREAD", plotThreadId, role);
 
   const fields: { label: string; value: string | null }[] = [{ label: "Descrição", value: plotThread.description }];
   const filledFields = fields.filter((field) => field.value);
@@ -62,16 +65,18 @@ export default async function PlotThreadDetailPage({ params }: PlotThreadDetailP
           </div>
         </div>
 
-        <EntityActionsMenu
-          editHref={`/campaigns/${campaignId}/plot-threads/${plotThreadId}/edit`}
-          favorite={plotThread.favorite}
-          archived={plotThread.archived}
-          onToggleFavorite={togglePlotThreadFavoriteAction.bind(null, campaignId, plotThreadId)}
-          onToggleArchived={togglePlotThreadArchivedAction.bind(null, campaignId, plotThreadId)}
-          onDelete={deletePlotThreadAction.bind(null, campaignId, plotThreadId)}
-          deleteTitle={`Excluir "${plotThread.title}"?`}
-          deleteDescription="Esta ação não pode ser desfeita. Relações com esta trama também serão removidas."
-        />
+        {canManage && (
+          <EntityActionsMenu
+            editHref={`/campaigns/${campaignId}/plot-threads/${plotThreadId}/edit`}
+            favorite={plotThread.favorite}
+            archived={plotThread.archived}
+            onToggleFavorite={togglePlotThreadFavoriteAction.bind(null, campaignId, plotThreadId)}
+            onToggleArchived={togglePlotThreadArchivedAction.bind(null, campaignId, plotThreadId)}
+            onDelete={deletePlotThreadAction.bind(null, campaignId, plotThreadId)}
+            deleteTitle={`Excluir "${plotThread.title}"?`}
+            deleteDescription="Esta ação não pode ser desfeita. Relações com esta trama também serão removidas."
+          />
+        )}
       </div>
 
       {plotThread.tags.length > 0 && (
@@ -102,6 +107,7 @@ export default async function PlotThreadDetailPage({ params }: PlotThreadDetailP
         entityType="PLOT_THREAD"
         entityId={plotThreadId}
         relationships={relationships}
+      canManage={canManage}
       />
     </div>
   );

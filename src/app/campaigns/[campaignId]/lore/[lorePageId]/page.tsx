@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { requireUser } from "@/modules/core/auth/session";
+import { requireCampaignAccess } from "@/modules/core/permissions";
 import { getLorePageForUser } from "@/modules/creation/lore/queries";
 import {
   deleteLorePageAction,
@@ -32,8 +33,10 @@ export default async function LorePageDetail({ params }: LorePageDetailProps) {
   const user = await requireUser();
   const lorePage = await getLorePageForUser(user.id, campaignId, lorePageId);
   if (!lorePage) notFound();
+  const { role } = await requireCampaignAccess(user.id, campaignId);
+  const canManage = role !== "PLAYER";
 
-  const relationships = await listRelationshipsForEntity(campaignId, "LORE_PAGE", lorePageId);
+  const relationships = await listRelationshipsForEntity(campaignId, "LORE_PAGE", lorePageId, role);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-8">
@@ -54,16 +57,18 @@ export default async function LorePageDetail({ params }: LorePageDetailProps) {
           </div>
         </div>
 
-        <EntityActionsMenu
-          editHref={`/campaigns/${campaignId}/lore/${lorePageId}/edit`}
-          favorite={lorePage.favorite}
-          archived={lorePage.archived}
-          onToggleFavorite={toggleLorePageFavoriteAction.bind(null, campaignId, lorePageId)}
-          onToggleArchived={toggleLorePageArchivedAction.bind(null, campaignId, lorePageId)}
-          onDelete={deleteLorePageAction.bind(null, campaignId, lorePageId)}
-          deleteTitle={`Excluir "${lorePage.title}"?`}
-          deleteDescription="Esta ação não pode ser desfeita. Relações com esta página também serão removidas."
-        />
+        {canManage && (
+          <EntityActionsMenu
+            editHref={`/campaigns/${campaignId}/lore/${lorePageId}/edit`}
+            favorite={lorePage.favorite}
+            archived={lorePage.archived}
+            onToggleFavorite={toggleLorePageFavoriteAction.bind(null, campaignId, lorePageId)}
+            onToggleArchived={toggleLorePageArchivedAction.bind(null, campaignId, lorePageId)}
+            onDelete={deleteLorePageAction.bind(null, campaignId, lorePageId)}
+            deleteTitle={`Excluir "${lorePage.title}"?`}
+            deleteDescription="Esta ação não pode ser desfeita. Relações com esta página também serão removidas."
+          />
+        )}
       </div>
 
       {lorePage.tags.length > 0 && (
@@ -85,6 +90,7 @@ export default async function LorePageDetail({ params }: LorePageDetailProps) {
         entityType="LORE_PAGE"
         entityId={lorePageId}
         relationships={relationships}
+        canManage={canManage}
       />
     </div>
   );

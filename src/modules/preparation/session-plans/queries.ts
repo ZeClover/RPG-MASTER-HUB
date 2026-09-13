@@ -19,8 +19,13 @@ export function listSessionPlans(campaignId: string, filters: WikiListFilters<Se
   });
 }
 
+// Fase 9 (permissões avançadas, ver ARCHITECTURE.md, seção 21.5): SessionPlan
+// é material de preparação do mestre (tem `gmNotes`, sem `visibility` — seção
+// 13.5) — nunca foi pensado como conteúdo legível por PLAYER, então a leitura
+// exige CO_GM como qualquer mutação, ao contrário do padrão `PLAYER` default
+// das entidades de wiki.
 export async function getSessionPlanForUser(userId: string, campaignId: string, sessionPlanId: string) {
-  await requireCampaignAccess(userId, campaignId);
+  await requireCampaignAccess(userId, campaignId, "CO_GM");
   return db.sessionPlan.findFirst({
     where: { id: sessionPlanId, campaignId },
     include: {

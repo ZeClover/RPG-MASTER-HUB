@@ -18,14 +18,15 @@ export default async function FamilyTreePage({ params }: FamilyTreePageProps) {
   const { campaignId } = await params;
   const user = await requireUser();
 
+  let role;
   try {
-    await requireCampaignAccess(user.id, campaignId);
+    ({ role } = await requireCampaignAccess(user.id, campaignId));
   } catch (error) {
     if (error instanceof CampaignAccessError) notFound();
     throw error;
   }
 
-  const relations = await listFamilyRelations(campaignId);
+  const relations = await listFamilyRelations(campaignId, role);
   const roots = buildFamilyTrees(relations);
 
   return (

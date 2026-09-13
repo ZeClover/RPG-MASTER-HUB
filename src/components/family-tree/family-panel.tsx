@@ -28,10 +28,12 @@ function FamilyGroupSection({
   label,
   entries,
   campaignId,
+  canManage,
 }: {
   label: string;
   entries: FamilyGroupEntry[];
   campaignId: string;
+  canManage: boolean;
 }) {
   if (entries.length === 0) return null;
   return (
@@ -46,7 +48,7 @@ function FamilyGroupSection({
             <Link href={`/campaigns/${campaignId}/npcs/${entry.npc.id}`} className="min-w-0 flex-1 truncate hover:underline">
               {entry.npc.name}
             </Link>
-            <DeleteFamilyRelationButton campaignId={campaignId} relationId={entry.relationId} />
+            {canManage && <DeleteFamilyRelationButton campaignId={campaignId} relationId={entry.relationId} />}
           </li>
         ))}
       </ul>
@@ -59,9 +61,10 @@ interface FamilyPanelProps {
   npcId: string;
   npcName: string;
   groups: FamilyGroups;
+  canManage?: boolean;
 }
 
-export function FamilyPanel({ campaignId, npcId, npcName, groups }: FamilyPanelProps) {
+export function FamilyPanel({ campaignId, npcId, npcName, groups, canManage = true }: FamilyPanelProps) {
   const isEmpty =
     groups.parents.length === 0 &&
     groups.children.length === 0 &&
@@ -72,17 +75,37 @@ export function FamilyPanel({ campaignId, npcId, npcName, groups }: FamilyPanelP
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
         <CardTitle>Família</CardTitle>
-        <AddFamilyRelationDialog campaignId={campaignId} npcId={npcId} npcName={npcName} />
+        {canManage && <AddFamilyRelationDialog campaignId={campaignId} npcId={npcId} npcName={npcName} />}
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-0">
         {isEmpty ? (
           <p className="text-sm text-muted-foreground">Nenhum parentesco registrado ainda.</p>
         ) : (
           <>
-            <FamilyGroupSection label="Pais" entries={groups.parents} campaignId={campaignId} />
-            <FamilyGroupSection label="Filhos" entries={groups.children} campaignId={campaignId} />
-            <FamilyGroupSection label="Cônjuge(s)" entries={groups.spouses} campaignId={campaignId} />
-            <FamilyGroupSection label="Irmãos" entries={groups.siblings} campaignId={campaignId} />
+            <FamilyGroupSection
+              label="Pais"
+              entries={groups.parents}
+              campaignId={campaignId}
+              canManage={canManage}
+            />
+            <FamilyGroupSection
+              label="Filhos"
+              entries={groups.children}
+              campaignId={campaignId}
+              canManage={canManage}
+            />
+            <FamilyGroupSection
+              label="Cônjuge(s)"
+              entries={groups.spouses}
+              campaignId={campaignId}
+              canManage={canManage}
+            />
+            <FamilyGroupSection
+              label="Irmãos"
+              entries={groups.siblings}
+              campaignId={campaignId}
+              canManage={canManage}
+            />
           </>
         )}
       </CardContent>

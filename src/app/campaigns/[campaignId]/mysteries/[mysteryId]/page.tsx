@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Search } from "lucide-react";
 
 import { requireUser } from "@/modules/core/auth/session";
+import { requireCampaignAccess } from "@/modules/core/permissions";
 import { getMysteryForUser, resolveClueLinks } from "@/modules/worldbuilding/mysteries/queries";
 import {
   deleteMysteryAction,
@@ -35,9 +36,11 @@ export default async function MysteryDetailPage({ params }: MysteryDetailPagePro
   const user = await requireUser();
   const mystery = await getMysteryForUser(user.id, campaignId, mysteryId);
   if (!mystery) notFound();
+  const { role } = await requireCampaignAccess(user.id, campaignId);
+  const canManage = role !== "PLAYER";
 
   const [relationships, linkedEntities] = await Promise.all([
-    listRelationshipsForEntity(campaignId, "MYSTERY", mysteryId),
+    listRelationshipsForEntity(campaignId, "MYSTERY", mysteryId, role),
     resolveClueLinks(campaignId, mystery.clues),
   ]);
   const linkedEntitiesByKey = Object.fromEntries(linkedEntities);
@@ -62,16 +65,18 @@ export default async function MysteryDetailPage({ params }: MysteryDetailPagePro
           </div>
         </div>
 
-        <EntityActionsMenu
-          editHref={`/campaigns/${campaignId}/mysteries/${mysteryId}/edit`}
-          favorite={mystery.favorite}
-          archived={mystery.archived}
-          onToggleFavorite={toggleMysteryFavoriteAction.bind(null, campaignId, mysteryId)}
-          onToggleArchived={toggleMysteryArchivedAction.bind(null, campaignId, mysteryId)}
-          onDelete={deleteMysteryAction.bind(null, campaignId, mysteryId)}
-          deleteTitle={`Excluir "${mystery.title}"?`}
-          deleteDescription="Esta ação não pode ser desfeita. As pistas e relações deste mistério também serão removidas."
-        />
+        {canManage && (
+          <EntityActionsMenu
+            editHref={`/campaigns/${campaignId}/mysteries/${mysteryId}/edit`}
+            favorite={mystery.favorite}
+            archived={mystery.archived}
+            onToggleFavorite={toggleMysteryFavoriteAction.bind(null, campaignId, mysteryId)}
+            onToggleArchived={toggleMysteryArchivedAction.bind(null, campaignId, mysteryId)}
+            onDelete={deleteMysteryAction.bind(null, campaignId, mysteryId)}
+            deleteTitle={`Excluir "${mystery.title}"?`}
+            deleteDescription="Esta ação não pode ser desfeita. As pistas e relações deste mistério também serão removidas."
+          />
+        )}
       </div>
 
       {mystery.tags.length > 0 && (
@@ -102,6 +107,7 @@ export default async function MysteryDetailPage({ params }: MysteryDetailPagePro
           campaignId={campaignId}
           mysteryId={mysteryId}
           linkedEntitiesByKey={linkedEntitiesByKey}
+          canManage={canManage}
         />
       </div>
 
@@ -110,6 +116,7 @@ export default async function MysteryDetailPage({ params }: MysteryDetailPagePro
         entityType="MYSTERY"
         entityId={mysteryId}
         relationships={relationships}
+        canManage={canManage}
       />
     </div>
   );

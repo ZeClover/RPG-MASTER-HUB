@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { History } from "lucide-react";
 
 import { requireUser } from "@/modules/core/auth/session";
+import { requireCampaignAccess } from "@/modules/core/permissions";
 import { getTimelineEventForUser } from "@/modules/worldbuilding/timeline/queries";
 import {
   deleteTimelineEventAction,
@@ -32,8 +33,10 @@ export default async function TimelineEventDetailPage({ params }: TimelineEventD
   const user = await requireUser();
   const event = await getTimelineEventForUser(user.id, campaignId, eventId);
   if (!event) notFound();
+  const { role } = await requireCampaignAccess(user.id, campaignId);
+  const canManage = role !== "PLAYER";
 
-  const relationships = await listRelationshipsForEntity(campaignId, "TIMELINE_EVENT", eventId);
+  const relationships = await listRelationshipsForEntity(campaignId, "TIMELINE_EVENT", eventId, role);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-8">
@@ -51,16 +54,18 @@ export default async function TimelineEventDetailPage({ params }: TimelineEventD
           </div>
         </div>
 
-        <EntityActionsMenu
-          editHref={`/campaigns/${campaignId}/timeline/${eventId}/edit`}
-          favorite={event.favorite}
-          archived={event.archived}
-          onToggleFavorite={toggleTimelineEventFavoriteAction.bind(null, campaignId, eventId)}
-          onToggleArchived={toggleTimelineEventArchivedAction.bind(null, campaignId, eventId)}
-          onDelete={deleteTimelineEventAction.bind(null, campaignId, eventId)}
-          deleteTitle={`Excluir "${event.title}"?`}
-          deleteDescription="Esta ação não pode ser desfeita. Relações com este evento também serão removidas."
-        />
+        {canManage && (
+          <EntityActionsMenu
+            editHref={`/campaigns/${campaignId}/timeline/${eventId}/edit`}
+            favorite={event.favorite}
+            archived={event.archived}
+            onToggleFavorite={toggleTimelineEventFavoriteAction.bind(null, campaignId, eventId)}
+            onToggleArchived={toggleTimelineEventArchivedAction.bind(null, campaignId, eventId)}
+            onDelete={deleteTimelineEventAction.bind(null, campaignId, eventId)}
+            deleteTitle={`Excluir "${event.title}"?`}
+            deleteDescription="Esta ação não pode ser desfeita. Relações com este evento também serão removidas."
+          />
+        )}
       </div>
 
       {event.tags.length > 0 && (
@@ -87,6 +92,7 @@ export default async function TimelineEventDetailPage({ params }: TimelineEventD
         entityType="TIMELINE_EVENT"
         entityId={eventId}
         relationships={relationships}
+        canManage={canManage}
       />
     </div>
   );

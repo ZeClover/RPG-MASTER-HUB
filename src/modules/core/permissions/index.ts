@@ -2,12 +2,7 @@ import "server-only";
 
 import { db } from "@/lib/db";
 import type { CampaignRole } from "@/generated/prisma/client";
-
-const ROLE_RANK: Record<CampaignRole, number> = {
-  PLAYER: 0,
-  CO_GM: 1,
-  OWNER: 2,
-};
+import { CAMPAIGN_ROLE_RANK } from "@/lib/roles";
 
 export class CampaignAccessError extends Error {
   constructor(message = "Você não tem acesso a esta campanha.") {
@@ -30,9 +25,11 @@ export async function requireCampaignAccess(
     include: { campaign: true },
   });
 
-  if (!membership || ROLE_RANK[membership.role] < ROLE_RANK[minRole]) {
+  if (!membership || CAMPAIGN_ROLE_RANK[membership.role] < CAMPAIGN_ROLE_RANK[minRole]) {
     throw new CampaignAccessError();
   }
 
   return membership;
 }
+
+export * from "@/modules/core/permissions/visibility";

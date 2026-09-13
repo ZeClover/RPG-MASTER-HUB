@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Sparkles } from "lucide-react";
 
 import { requireUser } from "@/modules/core/auth/session";
+import { requireCampaignAccess } from "@/modules/core/permissions";
 import { getPowerForUser } from "@/modules/gametools/powers/queries";
 import {
   deletePowerAction,
@@ -33,8 +34,10 @@ export default async function PowerDetailPage({ params }: PowerDetailPageProps) 
   const user = await requireUser();
   const power = await getPowerForUser(user.id, campaignId, powerId);
   if (!power) notFound();
+  const { role } = await requireCampaignAccess(user.id, campaignId);
+  const canManage = role !== "PLAYER";
 
-  const relationships = await listRelationshipsForEntity(campaignId, "POWER", powerId);
+  const relationships = await listRelationshipsForEntity(campaignId, "POWER", powerId, role);
 
   const fields: { label: string; value: string | null }[] = [
     { label: "Descrição", value: power.description },
@@ -59,16 +62,18 @@ export default async function PowerDetailPage({ params }: PowerDetailPageProps) 
           </div>
         </div>
 
-        <EntityActionsMenu
-          editHref={`/campaigns/${campaignId}/powers/${powerId}/edit`}
-          favorite={power.favorite}
-          archived={power.archived}
-          onToggleFavorite={togglePowerFavoriteAction.bind(null, campaignId, powerId)}
-          onToggleArchived={togglePowerArchivedAction.bind(null, campaignId, powerId)}
-          onDelete={deletePowerAction.bind(null, campaignId, powerId)}
-          deleteTitle={`Excluir "${power.name}"?`}
-          deleteDescription="Esta ação não pode ser desfeita. Relações com este poder também serão removidas."
-        />
+        {canManage && (
+          <EntityActionsMenu
+            editHref={`/campaigns/${campaignId}/powers/${powerId}/edit`}
+            favorite={power.favorite}
+            archived={power.archived}
+            onToggleFavorite={togglePowerFavoriteAction.bind(null, campaignId, powerId)}
+            onToggleArchived={togglePowerArchivedAction.bind(null, campaignId, powerId)}
+            onDelete={deletePowerAction.bind(null, campaignId, powerId)}
+            deleteTitle={`Excluir "${power.name}"?`}
+            deleteDescription="Esta ação não pode ser desfeita. Relações com este poder também serão removidas."
+          />
+        )}
       </div>
 
       {power.tags.length > 0 && (
@@ -99,6 +104,7 @@ export default async function PowerDetailPage({ params }: PowerDetailPageProps) 
         entityType="POWER"
         entityId={powerId}
         relationships={relationships}
+      canManage={canManage}
       />
     </div>
   );

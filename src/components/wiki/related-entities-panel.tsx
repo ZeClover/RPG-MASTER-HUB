@@ -31,9 +31,17 @@ interface RelatedEntitiesPanelProps {
   entityType: RelatableEntityType;
   entityId: string;
   relationships: ResolvedRelationship[];
+  /** PLAYER não vê "Adicionar relação"/remover — só CO_GM/OWNER gerenciam (ver ARCHITECTURE.md, seção 21.2). */
+  canManage?: boolean;
 }
 
-export function RelatedEntitiesPanel({ campaignId, entityType, entityId, relationships }: RelatedEntitiesPanelProps) {
+export function RelatedEntitiesPanel({
+  campaignId,
+  entityType,
+  entityId,
+  relationships,
+  canManage = true,
+}: RelatedEntitiesPanelProps) {
   const grouped = new Map<RelatableEntityType, ResolvedRelationship[]>();
   for (const rel of relationships) {
     if (!grouped.has(rel.other.type)) grouped.set(rel.other.type, []);
@@ -44,7 +52,7 @@ export function RelatedEntitiesPanel({ campaignId, entityType, entityId, relatio
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
         <CardTitle>Relacionamentos</CardTitle>
-        <AddRelationshipDialog campaignId={campaignId} sourceType={entityType} sourceId={entityId} />
+        {canManage && <AddRelationshipDialog campaignId={campaignId} sourceType={entityType} sourceId={entityId} />}
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-0">
         {relationships.length === 0 ? (
@@ -79,7 +87,7 @@ export function RelatedEntitiesPanel({ campaignId, entityType, entityId, relatio
                           </>
                         )}
                       </Link>
-                      <DeleteRelationshipButton relationshipId={rel.id} campaignId={campaignId} />
+                      {canManage && <DeleteRelationshipButton relationshipId={rel.id} campaignId={campaignId} />}
                     </li>
                   ))}
                 </ul>

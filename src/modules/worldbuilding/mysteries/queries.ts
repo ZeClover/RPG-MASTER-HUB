@@ -1,18 +1,19 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-import type { MysteryStatus, RelatableEntityType } from "@/generated/prisma/client";
-import { requireCampaignAccess } from "@/modules/core/permissions";
+import type { CampaignRole, MysteryStatus, RelatableEntityType } from "@/generated/prisma/client";
+import { entityForRole, isPlayerRole, requireCampaignAccess, visibilityWhereForRole } from "@/modules/core/permissions";
 import type { WikiListFilters } from "@/modules/creation/wiki-filters";
 import { resolveEntityRefs, type EntityRef } from "@/modules/creation/relationships/queries";
 
-export function listMysteries(campaignId: string, filters: WikiListFilters<MysteryStatus>) {
+export function listMysteries(campaignId: string, filters: WikiListFilters<MysteryStatus>, role: CampaignRole) {
   return db.mystery.findMany({
     where: {
       campaignId,
       archived: filters.archived ?? false,
       favorite: filters.favorite ? true : undefined,
       status: filters.status,
+      visibility: visibilityWhereForRole(role),
       title: filters.q ? { contains: filters.q, mode: "insensitive" } : undefined,
       tags: filters.tag ? { some: { tag: { slug: filters.tag } } } : undefined,
     },
@@ -21,15 +22,26 @@ export function listMysteries(campaignId: string, filters: WikiListFilters<Myste
   });
 }
 
+/**
+ * Player Knowledge (Fase 9, ver ARCHITECTURE.md, seção 21.3): `discovered` é
+ * controle interno do mestre ("já rolei isso na mesa"); `sharedWithPlayers` é
+ * o que de fato foi entregue aos jogadores. Um PLAYER só vê pistas com
+ * `sharedWithPlayers: true` — mesmo que já `discovered`, uma pista descoberta
+ * mas ainda não comunicada aos jogadores continua invisível para eles.
+ */
 export async function getMysteryForUser(userId: string, campaignId: string, mysteryId: string) {
-  await requireCampaignAccess(userId, campaignId);
-  return db.mystery.findFirst({
+  const { role } = await requireCampaignAccess(userId, campaignId);
+  const mystery = await db.mystery.findFirst({
     where: { id: mysteryId, campaignId },
     include: {
       tags: { include: { tag: true } },
       clues: { orderBy: { order: "asc" } },
     },
   });
+  const visible = entityForRole(mystery, role);
+  if (!visible) return visible;
+  if (!isPlayerRole(role)) return visible;
+  return { ...visible, clues: visible.clues.filter((clue) => clue.sharedWithPlayers) };
 }
 
 export function countMysteries(campaignId: string) {

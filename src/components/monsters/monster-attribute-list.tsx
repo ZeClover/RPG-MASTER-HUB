@@ -12,10 +12,12 @@ function AttributeRow({
   attribute,
   campaignId,
   monsterId,
+  canManage,
 }: {
   attribute: MonsterAttribute;
   campaignId: string;
   monsterId: string;
+  canManage: boolean;
 }) {
   const [isDeleting, startDeleteTransition] = useTransition();
 
@@ -23,15 +25,17 @@ function AttributeRow({
     <li className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
       <span className="min-w-0 flex-1 truncate font-medium">{attribute.key}</span>
       <span className="min-w-0 flex-[2] truncate text-muted-foreground">{attribute.value}</span>
-      <button
-        type="button"
-        disabled={isDeleting}
-        onClick={() => startDeleteTransition(() => deleteMonsterAttributeAction(campaignId, monsterId, attribute.id))}
-        className="shrink-0 rounded p-1 text-muted-foreground opacity-60 transition-opacity hover:bg-surface-elevated hover:opacity-100"
-        aria-label={`Remover atributo ${attribute.key}`}
-      >
-        <X className="size-3.5" />
-      </button>
+      {canManage && (
+        <button
+          type="button"
+          disabled={isDeleting}
+          onClick={() => startDeleteTransition(() => deleteMonsterAttributeAction(campaignId, monsterId, attribute.id))}
+          className="shrink-0 rounded p-1 text-muted-foreground opacity-60 transition-opacity hover:bg-surface-elevated hover:opacity-100"
+          aria-label={`Remover atributo ${attribute.key}`}
+        >
+          <X className="size-3.5" />
+        </button>
+      )}
     </li>
   );
 }
@@ -67,21 +71,29 @@ export function MonsterAttributeList({
   attributes,
   campaignId,
   monsterId,
+  canManage = true,
 }: {
   attributes: MonsterAttribute[];
   campaignId: string;
   monsterId: string;
+  canManage?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-3">
       {attributes.length > 0 && (
         <ul className="flex flex-col gap-1.5">
           {attributes.map((attribute) => (
-            <AttributeRow key={attribute.id} attribute={attribute} campaignId={campaignId} monsterId={monsterId} />
+            <AttributeRow
+              key={attribute.id}
+              attribute={attribute}
+              campaignId={campaignId}
+              monsterId={monsterId}
+              canManage={canManage}
+            />
           ))}
         </ul>
       )}
-      <AddAttributeForm campaignId={campaignId} monsterId={monsterId} />
+      {canManage && <AddAttributeForm campaignId={campaignId} monsterId={monsterId} />}
     </div>
   );
 }

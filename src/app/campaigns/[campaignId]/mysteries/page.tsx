@@ -34,8 +34,9 @@ export default async function MysteriesPage({ params, searchParams }: MysteriesP
   const sp = await searchParams;
   const user = await requireUser();
 
+  let role;
   try {
-    await requireCampaignAccess(user.id, campaignId);
+    ({ role } = await requireCampaignAccess(user.id, campaignId));
   } catch (error) {
     if (error instanceof CampaignAccessError) notFound();
     throw error;
@@ -51,7 +52,7 @@ export default async function MysteriesPage({ params, searchParams }: MysteriesP
   const archived = sp.archived === "1";
 
   const [mysteries, tags] = await Promise.all([
-    listMysteries(campaignId, { q, tag, status, favorite, archived }),
+    listMysteries(campaignId, { q, tag, status, favorite, archived }, role),
     listTagsForCampaign(campaignId),
   ]);
 

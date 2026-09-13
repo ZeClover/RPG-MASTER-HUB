@@ -130,6 +130,7 @@ export function NpcForm({
       <div className="flex flex-col gap-2">
         <Label htmlFor="gmNotes">Notas do Mestre</Label>
         <Textarea id="gmNotes" name="gmNotes" rows={3} defaultValue={defaultValues?.gmNotes ?? ""} />
+        <p className="text-xs text-muted-foreground">Sempre tratado como informação do Mestre.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -31,8 +31,9 @@ export default async function MonstersPage({ params, searchParams }: MonstersPag
   const sp = await searchParams;
   const user = await requireUser();
 
+  let role;
   try {
-    await requireCampaignAccess(user.id, campaignId);
+    ({ role } = await requireCampaignAccess(user.id, campaignId));
   } catch (error) {
     if (error instanceof CampaignAccessError) notFound();
     throw error;
@@ -48,7 +49,7 @@ export default async function MonstersPage({ params, searchParams }: MonstersPag
   const archived = sp.archived === "1";
 
   const [monsters, tags] = await Promise.all([
-    listMonsters(campaignId, { q, tag, status, favorite, archived }),
+    listMonsters(campaignId, { q, tag, status, favorite, archived }, role),
     listTagsForCampaign(campaignId),
   ]);
 

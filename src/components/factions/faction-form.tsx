@@ -119,6 +119,7 @@ export function FactionForm({
       <div className="flex flex-col gap-2">
         <Label htmlFor="secrets">Segredos</Label>
         <Textarea id="secrets" name="secrets" rows={3} defaultValue={defaultValues?.secrets ?? ""} />
+        <p className="text-xs text-muted-foreground">Sempre tratado como informação do Mestre.</p>
       </div>
 
       <div className="flex flex-col gap-2">

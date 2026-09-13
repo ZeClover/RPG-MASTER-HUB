@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { requireUser } from "@/modules/core/auth/session";
+import { requireCampaignAccess } from "@/modules/core/permissions";
 import { getFactionForUser } from "@/modules/creation/factions/queries";
 import {
   deleteFactionAction,
@@ -32,8 +33,10 @@ export default async function FactionDetailPage({ params }: FactionDetailPagePro
   const user = await requireUser();
   const faction = await getFactionForUser(user.id, campaignId, factionId);
   if (!faction) notFound();
+  const { role } = await requireCampaignAccess(user.id, campaignId);
+  const canManage = role !== "PLAYER";
 
-  const relationships = await listRelationshipsForEntity(campaignId, "FACTION", factionId);
+  const relationships = await listRelationshipsForEntity(campaignId, "FACTION", factionId, role);
 
   const fields: { label: string; value: string | null }[] = [
     { label: "Descrição", value: faction.description },
@@ -67,16 +70,18 @@ export default async function FactionDetailPage({ params }: FactionDetailPagePro
           </div>
         </div>
 
-        <EntityActionsMenu
-          editHref={`/campaigns/${campaignId}/factions/${factionId}/edit`}
-          favorite={faction.favorite}
-          archived={faction.archived}
-          onToggleFavorite={toggleFactionFavoriteAction.bind(null, campaignId, factionId)}
-          onToggleArchived={toggleFactionArchivedAction.bind(null, campaignId, factionId)}
-          onDelete={deleteFactionAction.bind(null, campaignId, factionId)}
-          deleteTitle={`Excluir "${faction.name}"?`}
-          deleteDescription="Esta ação não pode ser desfeita. Relações com esta facção também serão removidas."
-        />
+        {canManage && (
+          <EntityActionsMenu
+            editHref={`/campaigns/${campaignId}/factions/${factionId}/edit`}
+            favorite={faction.favorite}
+            archived={faction.archived}
+            onToggleFavorite={toggleFactionFavoriteAction.bind(null, campaignId, factionId)}
+            onToggleArchived={toggleFactionArchivedAction.bind(null, campaignId, factionId)}
+            onDelete={deleteFactionAction.bind(null, campaignId, factionId)}
+            deleteTitle={`Excluir "${faction.name}"?`}
+            deleteDescription="Esta ação não pode ser desfeita. Relações com esta facção também serão removidas."
+          />
+        )}
       </div>
 
       {faction.tags.length > 0 && (
@@ -107,6 +112,7 @@ export default async function FactionDetailPage({ params }: FactionDetailPagePro
         entityType="FACTION"
         entityId={factionId}
         relationships={relationships}
+        canManage={canManage}
       />
     </div>
   );

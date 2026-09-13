@@ -20,7 +20,7 @@ export default async function LoreGuardianPage({ params }: LoreGuardianPageProps
   const user = await requireUser();
 
   try {
-    await requireCampaignAccess(user.id, campaignId);
+    await requireCampaignAccess(user.id, campaignId, "CO_GM");
   } catch (error) {
     if (error instanceof CampaignAccessError) notFound();
     throw error;

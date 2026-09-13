@@ -19,7 +19,7 @@ export default async function ContentGraveyardPage({ params }: ContentGraveyardP
   const user = await requireUser();
 
   try {
-    await requireCampaignAccess(user.id, campaignId);
+    await requireCampaignAccess(user.id, campaignId, "CO_GM");
   } catch (error) {
     if (error instanceof CampaignAccessError) notFound();
     throw error;

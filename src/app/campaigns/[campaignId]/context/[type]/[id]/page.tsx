@@ -5,6 +5,7 @@ import { ExternalLink, Star } from "lucide-react";
 
 import type { RelatableEntityType } from "@/generated/prisma/client";
 import { requireUser } from "@/modules/core/auth/session";
+import { CampaignAccessError } from "@/modules/core/permissions";
 import { getEntityContext } from "@/modules/intelligence/context-engine/queries";
 import { ENTITY_TYPE_LABELS } from "@/modules/creation/relationships/config";
 import { CanonStatusBadge } from "@/components/wiki/canon-status-badge";
@@ -42,7 +43,13 @@ export default async function ContextSubjectPage({ params }: ContextSubjectPageP
   if (!type) notFound();
 
   const user = await requireUser();
-  const bundle = await getEntityContext(user.id, campaignId, type, id);
+  let bundle;
+  try {
+    bundle = await getEntityContext(user.id, campaignId, type, id);
+  } catch (error) {
+    if (error instanceof CampaignAccessError) notFound();
+    throw error;
+  }
   if (!bundle) notFound();
 
   const { subject, relationships, linkingClues, family } = bundle;

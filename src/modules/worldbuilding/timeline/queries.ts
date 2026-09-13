@@ -1,15 +1,17 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-import { requireCampaignAccess } from "@/modules/core/permissions";
+import type { CampaignRole } from "@/generated/prisma/client";
+import { entityForRole, requireCampaignAccess, visibilityWhereForRole } from "@/modules/core/permissions";
 import type { WikiListFilters } from "@/modules/creation/wiki-filters";
 
-export function listTimelineEvents(campaignId: string, filters: WikiListFilters<never>) {
+export function listTimelineEvents(campaignId: string, filters: WikiListFilters<never>, role: CampaignRole) {
   return db.timelineEvent.findMany({
     where: {
       campaignId,
       archived: filters.archived ?? false,
       favorite: filters.favorite ? true : undefined,
+      visibility: visibilityWhereForRole(role),
       title: filters.q ? { contains: filters.q, mode: "insensitive" } : undefined,
       tags: filters.tag ? { some: { tag: { slug: filters.tag } } } : undefined,
     },
@@ -19,11 +21,12 @@ export function listTimelineEvents(campaignId: string, filters: WikiListFilters<
 }
 
 export async function getTimelineEventForUser(userId: string, campaignId: string, eventId: string) {
-  await requireCampaignAccess(userId, campaignId);
-  return db.timelineEvent.findFirst({
+  const { role } = await requireCampaignAccess(userId, campaignId);
+  const event = await db.timelineEvent.findFirst({
     where: { id: eventId, campaignId },
     include: { tags: { include: { tag: true } } },
   });
+  return entityForRole(event, role);
 }
 
 export function countTimelineEvents(campaignId: string) {

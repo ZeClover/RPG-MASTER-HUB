@@ -35,8 +35,9 @@ export default async function PlotThreadsPage({ params, searchParams }: PlotThre
   const sp = await searchParams;
   const user = await requireUser();
 
+  let role;
   try {
-    await requireCampaignAccess(user.id, campaignId);
+    ({ role } = await requireCampaignAccess(user.id, campaignId));
   } catch (error) {
     if (error instanceof CampaignAccessError) notFound();
     throw error;
@@ -52,7 +53,7 @@ export default async function PlotThreadsPage({ params, searchParams }: PlotThre
   const archived = sp.archived === "1";
 
   const [plotThreads, tags] = await Promise.all([
-    listPlotThreads(campaignId, { q, tag, status, favorite, archived }),
+    listPlotThreads(campaignId, { q, tag, status, favorite, archived }, role),
     listTagsForCampaign(campaignId),
   ]);
 

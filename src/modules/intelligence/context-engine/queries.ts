@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { CanonStatus, RelatableEntityType, Visibility } from "@/generated/prisma/client";
+import { requireCampaignAccess } from "@/modules/core/permissions";
 import { getEntityHref } from "@/modules/creation/relationships/config";
 import { listRelationshipsForEntity, type ResolvedRelationship } from "@/modules/creation/relationships/queries";
 import { getNpcForUser } from "@/modules/creation/npcs/queries";
@@ -390,6 +391,12 @@ export interface EntityContextBundle {
  * dois lados, via `listRelationshipsForEntity`, já existente desde a Fase 1),
  * Pistas de Mistério que a citam (novo, mas só uma query — `findCluesLinkedToEntity`)
  * e, só para NPC, os parentescos do Family Tree (Fase 5, já existente).
+ *
+ * Fase 9 (permissões avançadas, ver ARCHITECTURE.md, seção 21.5): o Context
+ * Engine é ferramenta do mestre (raio-x cruzando dados de várias entidades) —
+ * a página que chama isto já exige CO_GM, e aqui a checagem é repetida
+ * (mesmo padrão de defesa em profundidade do resto do projeto) só para obter
+ * `role`, usado por `listRelationshipsForEntity`/`listFamilyRelationsForNpc`.
  */
 export async function getEntityContext(
   userId: string,
@@ -397,13 +404,14 @@ export async function getEntityContext(
   type: RelatableEntityType,
   id: string,
 ): Promise<EntityContextBundle | null> {
+  const { role } = await requireCampaignAccess(userId, campaignId, "CO_GM");
   const subject = await loadSubject(userId, campaignId, type, id);
   if (!subject) return null;
 
   const [relationships, clues, familyRelations] = await Promise.all([
-    listRelationshipsForEntity(campaignId, type, id),
+    listRelationshipsForEntity(campaignId, type, id, role),
     findCluesLinkedToEntity(campaignId, type, id),
-    type === "NPC" ? listFamilyRelationsForNpc(campaignId, id) : Promise.resolve(null),
+    type === "NPC" ? listFamilyRelationsForNpc(campaignId, id, role) : Promise.resolve(null),
   ]);
 
   return {

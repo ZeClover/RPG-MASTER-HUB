@@ -134,6 +134,8 @@ model Campaign {
   powers     Power[]
   rollTables RollTable[]
 
+  handouts Handout[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1011,6 +1013,10 @@ model Clue {
 
   text       String
   discovered Boolean @default(false)
+  /// Player Knowledge (Fase 9, ver ARCHITECTURE.md, seção 21.3): distinto de
+  /// `discovered` (controle interno do mestre) — só pistas com
+  /// `sharedWithPlayers: true` aparecem para um PLAYER.
+  sharedWithPlayers Boolean @default(false)
   order      Int     @default(0)
 
   linkedEntityType RelatableEntityType?
@@ -1214,4 +1220,34 @@ model RollTableEntry {
 
   @@index([tableId, order])
   @@map("roll_table_entries")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Fase 9 — Jogadores (Convite/Membros, Player View, Player Knowledge, Handouts)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Documento/imagem entregue aos jogadores durante a sessão (uma carta
+/// encontrada, um mapa, uma pista física) — ver ARCHITECTURE.md, seção 21.4.
+/// `revealed` (não `visibility`/`GM_ONLY`-`PLAYERS`) é o eixo de acesso aqui
+/// de propósito: um Handout não tem meio-termo "PUBLIC" nem faz sentido pré-
+/// classificar como "para jogadores" antes de existir — ele é sempre GM-only
+/// até o mestre clicar em revelar, um binário mais simples que o enum
+/// `Visibility` de três estados usado pelo resto da wiki.
+model Handout {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  title    String
+  content  String?
+  imageUrl String?
+
+  revealed   Boolean   @default(false)
+  revealedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId, revealed])
+  @@map("handouts")
 }

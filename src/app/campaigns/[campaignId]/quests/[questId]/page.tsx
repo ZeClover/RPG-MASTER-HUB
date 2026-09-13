@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Scroll } from "lucide-react";
 
 import { requireUser } from "@/modules/core/auth/session";
+import { requireCampaignAccess } from "@/modules/core/permissions";
 import { getQuestForUser } from "@/modules/preparation/quests/queries";
 import {
   deleteQuestAction,
@@ -34,8 +35,10 @@ export default async function QuestDetailPage({ params }: QuestDetailPageProps) 
   const user = await requireUser();
   const quest = await getQuestForUser(user.id, campaignId, questId);
   if (!quest) notFound();
+  const { role } = await requireCampaignAccess(user.id, campaignId);
+  const canManage = role !== "PLAYER";
 
-  const relationships = await listRelationshipsForEntity(campaignId, "QUEST", questId);
+  const relationships = await listRelationshipsForEntity(campaignId, "QUEST", questId, role);
 
   const fields: { label: string; value: string | null }[] = [
     { label: "Objetivo", value: quest.objective },
@@ -60,16 +63,18 @@ export default async function QuestDetailPage({ params }: QuestDetailPageProps) 
           </div>
         </div>
 
-        <EntityActionsMenu
-          editHref={`/campaigns/${campaignId}/quests/${questId}/edit`}
-          favorite={quest.favorite}
-          archived={quest.archived}
-          onToggleFavorite={toggleQuestFavoriteAction.bind(null, campaignId, questId)}
-          onToggleArchived={toggleQuestArchivedAction.bind(null, campaignId, questId)}
-          onDelete={deleteQuestAction.bind(null, campaignId, questId)}
-          deleteTitle={`Excluir "${quest.title}"?`}
-          deleteDescription="Esta ação não pode ser desfeita. Relações com esta missão também serão removidas."
-        />
+        {canManage && (
+          <EntityActionsMenu
+            editHref={`/campaigns/${campaignId}/quests/${questId}/edit`}
+            favorite={quest.favorite}
+            archived={quest.archived}
+            onToggleFavorite={toggleQuestFavoriteAction.bind(null, campaignId, questId)}
+            onToggleArchived={toggleQuestArchivedAction.bind(null, campaignId, questId)}
+            onDelete={deleteQuestAction.bind(null, campaignId, questId)}
+            deleteTitle={`Excluir "${quest.title}"?`}
+            deleteDescription="Esta ação não pode ser desfeita. Relações com esta missão também serão removidas."
+          />
+        )}
       </div>
 
       {quest.tags.length > 0 && (
@@ -100,6 +105,7 @@ export default async function QuestDetailPage({ params }: QuestDetailPageProps) 
         entityType="QUEST"
         entityId={questId}
         relationships={relationships}
+      canManage={canManage}
       />
     </div>
   );

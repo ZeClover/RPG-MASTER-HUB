@@ -29,7 +29,7 @@ export default async function SessionPlansPage({ params, searchParams }: Session
   const user = await requireUser();
 
   try {
-    await requireCampaignAccess(user.id, campaignId);
+    await requireCampaignAccess(user.id, campaignId, "CO_GM");
   } catch (error) {
     if (error instanceof CampaignAccessError) notFound();
     throw error;

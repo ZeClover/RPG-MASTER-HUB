@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { requireUser } from "@/modules/core/auth/session";
+import { requireCampaignAccess } from "@/modules/core/permissions";
 import { getMonsterForUser } from "@/modules/gametools/monsters/queries";
 import {
   deleteMonsterAction,
@@ -34,8 +35,10 @@ export default async function MonsterDetailPage({ params }: MonsterDetailPagePro
   const user = await requireUser();
   const monster = await getMonsterForUser(user.id, campaignId, monsterId);
   if (!monster) notFound();
+  const { role } = await requireCampaignAccess(user.id, campaignId);
+  const canManage = role !== "PLAYER";
 
-  const relationships = await listRelationshipsForEntity(campaignId, "MONSTER", monsterId);
+  const relationships = await listRelationshipsForEntity(campaignId, "MONSTER", monsterId, role);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-8">
@@ -59,16 +62,18 @@ export default async function MonsterDetailPage({ params }: MonsterDetailPagePro
           </div>
         </div>
 
-        <EntityActionsMenu
-          editHref={`/campaigns/${campaignId}/monsters/${monsterId}/edit`}
-          favorite={monster.favorite}
-          archived={monster.archived}
-          onToggleFavorite={toggleMonsterFavoriteAction.bind(null, campaignId, monsterId)}
-          onToggleArchived={toggleMonsterArchivedAction.bind(null, campaignId, monsterId)}
-          onDelete={deleteMonsterAction.bind(null, campaignId, monsterId)}
-          deleteTitle={`Excluir "${monster.name}"?`}
-          deleteDescription="Esta ação não pode ser desfeita. Atributos e relações deste monstro também serão removidos."
-        />
+        {canManage && (
+          <EntityActionsMenu
+            editHref={`/campaigns/${campaignId}/monsters/${monsterId}/edit`}
+            favorite={monster.favorite}
+            archived={monster.archived}
+            onToggleFavorite={toggleMonsterFavoriteAction.bind(null, campaignId, monsterId)}
+            onToggleArchived={toggleMonsterArchivedAction.bind(null, campaignId, monsterId)}
+            onDelete={deleteMonsterAction.bind(null, campaignId, monsterId)}
+            deleteTitle={`Excluir "${monster.name}"?`}
+            deleteDescription="Esta ação não pode ser desfeita. Atributos e relações deste monstro também serão removidos."
+          />
+        )}
       </div>
 
       {monster.tags.length > 0 && (
@@ -92,7 +97,12 @@ export default async function MonsterDetailPage({ params }: MonsterDetailPagePro
 
       <div className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold">Atributos</h2>
-        <MonsterAttributeList attributes={monster.attributes} campaignId={campaignId} monsterId={monsterId} />
+        <MonsterAttributeList
+          attributes={monster.attributes}
+          campaignId={campaignId}
+          monsterId={monsterId}
+          canManage={canManage}
+        />
       </div>
 
       <RelatedEntitiesPanel
@@ -100,6 +110,7 @@ export default async function MonsterDetailPage({ params }: MonsterDetailPagePro
         entityType="MONSTER"
         entityId={monsterId}
         relationships={relationships}
+      canManage={canManage}
       />
     </div>
   );
