@@ -11,7 +11,7 @@ Dentro do app, o código se organiza em duas dimensões:
 - **`app/`** — apenas rotas. Layouts e páginas são finos: buscam sessão/dados via `modules/`, e delegam toda a lógica de domínio.
 - **`modules/<domínio>/<entidade>/`** — a lógica de negócio de verdade: `schemas.ts` (Zod), `actions.ts` (Server Actions), `queries.ts` (leituras). Mapeia diretamente para os domínios do briefing (CORE, CREATION, STORY, GAME, MEDIA, AUDIO, INTELLIGENCE, PLAYER).
 
-Até a Fase 0 só existia o módulo `core` (`auth`, `campaigns`, `permissions`). A Fase 1 introduziu o domínio `creation`: `modules/creation/<entidade>/` para cada tipo de conteúdo (NPCs, Locais, Facções, Lore, Ideias) mais dois módulos transversais que várias entidades compartilham (`tags`, `relationships`). A Fase 2 introduziu o domínio `preparation` (Sessões, Missões, Tramas, Consequências). A Fase 4 introduziu o domínio `audio` (Music/SFX Board — `modules/audio/`), mapeando para o domínio AUDIO do briefing. A Fase 5 introduziu o domínio `worldbuilding` (Timeline, Calendário, Relógios Narrativos, Family Tree, Mystery Board — `modules/worldbuilding/<entidade>/`), mapeando para o domínio STORY/World Building do briefing. A Fase 6 introduziu o domínio `gametools` (Monster/Item/Power Forge, Table Builder, Loot Generator — `modules/gametools/<entidade>/`), mapeando para o domínio GAME avançado do briefing. A Fase 7 introduziu o domínio `intelligence` (Campaign Brain avançado, Context Engine, Campaign Health, Content Graveyard — `modules/intelligence/<entidade>/`), mapeando para o domínio INTELLIGENCE do briefing — 100% agregação/heurística sobre dados já existentes, zero chamada de IA (ver seção 18.0). A Fase 8 introduziu o domínio `copilot` (Lore Guardian, Canon Checker, Campaign Recall, Consequence Suggester — `modules/copilot/<entidade>/`, mais `modules/copilot/shared/` para o carregador de `Relationship` reaproveitado por duas das quatro sub-features) — o domínio que o roadmap original chamava de "IA" e que virou, por pivô orçamentário, heurística e geração combinatória 100% local, zero LLM (ver seção 19.0). O domínio ainda não usado (PLAYER) continua sem pasta — mesma regra da Fase 0, pastas vazias não têm valor.
+Até a Fase 0 só existia o módulo `core` (`auth`, `campaigns`, `permissions`). A Fase 1 introduziu o domínio `creation`: `modules/creation/<entidade>/` para cada tipo de conteúdo (NPCs, Locais, Facções, Lore, Ideias) mais dois módulos transversais que várias entidades compartilham (`tags`, `relationships`). A Fase 2 introduziu o domínio `preparation` (Sessões, Missões, Tramas, Consequências). A Fase 4 introduziu o domínio `audio` (Music/SFX Board — `modules/audio/`), mapeando para o domínio AUDIO do briefing. A Fase 5 introduziu o domínio `worldbuilding` (Timeline, Calendário, Relógios Narrativos, Family Tree, Mystery Board — `modules/worldbuilding/<entidade>/`), mapeando para o domínio STORY/World Building do briefing. A Fase 6 introduziu o domínio `gametools` (Monster/Item/Power Forge, Table Builder, Loot Generator — `modules/gametools/<entidade>/`), mapeando para o domínio GAME avançado do briefing. A Fase 7 introduziu o domínio `intelligence` (Campaign Brain avançado, Context Engine, Campaign Health, Content Graveyard — `modules/intelligence/<entidade>/`), mapeando para o domínio INTELLIGENCE do briefing — 100% agregação/heurística sobre dados já existentes, zero chamada de IA (ver seção 18.0). A Fase 8 introduziu o domínio `copilot` (Lore Guardian, Canon Checker, Campaign Recall, Consequence Suggester — `modules/copilot/<entidade>/`, mais `modules/copilot/shared/` para o carregador de `Relationship` reaproveitado por duas das quatro sub-features) — o domínio que o roadmap original chamava de "IA" e que virou, por pivô orçamentário, heurística e geração combinatória 100% local, zero LLM (ver seção 19.0). A Fase 9 introduziu o domínio `players` (`modules/players/members/`, `modules/players/reveal/`, `modules/players/handouts/`), mapeando para o domínio PLAYER do briefing original — a lógica de "Player View" em si (filtragem por `visibility`) não ganhou pasta própria porque não é uma entidade nova, e sim um helper transversal reaproveitado por toda entidade existente (`modules/core/permissions/visibility.ts`, seção 20.2).
 
 ## 2. Stack
 
@@ -60,6 +60,7 @@ src/
                                                Content Graveyard — ver seção 18
       lore-guardian/, canon-checker/,
       campaign-recall/, consequence-suggester/ — Copiloto sem LLM (Fase 8) — ver seção 19
+      members/, handouts/                   — gestão de Co-Mestres/Jogadores e Handouts (Fase 9, seção 20)
     api/
       auth/[...nextauth]/                 — handlers do Auth.js
       v1/uploads/                         — upload de imagens e áudio (autenticado, mínimo CO_GM — seção 15.11)
@@ -69,7 +70,8 @@ src/
     core/
       auth/        — schemas, actions (register/login/logout), sessão
       campaigns/   — schemas, actions, queries
-      permissions/ — requireCampaignAccess (único ponto de checagem de papel)
+      permissions/ — requireCampaignAccess (único ponto de checagem de papel); visibility.ts: helpers puros de
+                     Player View reaproveitados por toda entidade com `visibility` (Fase 9, seção 20.2)
       search/      — busca global (Fase 1, estendida na Fase 2): queries cross-entidade + action
       dashboard/   — queries agregadas do dashboard (Fase 1, estendida na Fase 2)
     creation/
@@ -119,6 +121,10 @@ src/
       consequence-suggester/   — `templates.ts` (120 templates, constante), `generator.ts` (puro: sorteio +
                                   preenchimento de placeholders), queries (pool de entidades reais da
                                   campanha, Fase 8, seção 19.4)
+    players/
+      members/  — schemas, actions (convite/mudar papel/remover), queries de `CampaignMember` (Fase 9, seção 20.1)
+      reveal/   — `revealToPlayersAction`, despachante fino sobre os 12 tipos de `RelatableEntityType` (Fase 9, seção 20.3)
+      handouts/ — schemas, actions, queries de `Handout` (Fase 9, seção 20.4)
   components/
     ui/            — primitivas (Button, Card, Dialog, DropdownMenu, Tooltip, Avatar, Select, Popover...)
     layout/        — topbar, sidebar de campanha, menu de usuário
@@ -149,6 +155,9 @@ src/
                       (Canon Checker), timeline de recapitulação + botão de copiar (Campaign Recall),
                       gerador de sugestões com diálogo de salvar reaproveitando `ConsequenceForm`
                       (Consequence Suggester) — Fase 8, seção 19
+    players/        — formulário/lista/seletor de papel para gestão de membros, botão "Revelar aos
+                      jogadores" (Fase 9)
+    handouts/       — formulário e lista de handouts, com revelar/ocultar/excluir (Fase 9, seção 20.4)
   lib/
     db.ts          — client Prisma singleton
     auth.ts        — config do Auth.js
@@ -288,6 +297,24 @@ para actions que já existiam por entidade) sobre os modelos das Fases 1–6 —
 explícita de por que nenhuma tabela nova foi necessária, e seção 18.6 para `ContentEntityType`, o único tipo
 novo desta fase (TypeScript puro, não um enum de banco).
 
+### Modelo de dados (Fase 8)
+
+Nenhum modelo novo — as quatro sub-features do "Copiloto sem LLM" são heurísticas e geração combinatória sobre
+os modelos já existentes (ver seção 19.0). A única estrutura nova é `modules/copilot/consequence-suggester/templates.ts`,
+uma constante TypeScript (120 templates), não uma tabela — decisão justificada na seção 19.4.
+
+### Modelo de dados (Fase 9)
+
+```
+Handout   — campaignId, title, content? (texto), imageUrl? (upload), revealed (Boolean, default false),
+            revealedAt? — sempre GM-only até o mestre revelar (seção 20.4)
+```
+
+`CampaignMember` (já existente desde a Fase 0) ganhou seu primeiro fluxo de escrita de verdade além da criação
+automática do `OWNER` — `addCampaignMemberAction`/`updateCampaignMemberRoleAction`/`removeCampaignMemberAction`
+(seção 20.1). Player View e Player Knowledge (seções 20.2–20.3) não precisaram de schema novo: reaproveitam
+`visibility`, já modelado desde a Fase 1.
+
 ## 5. Autenticação
 
 Auth.js v5, Credentials provider (email + senha, hash bcrypt), sessão **JWT** (obrigatório quando há Credentials provider — sessão em banco não é suportada nesse caso). Prisma Adapter conectado desde já, então adicionar um provider OAuth (ex. "Entrar com Discord", plausível dado que o Discord já faz parte do produto) no futuro é só configuração, sem migração de dados.
@@ -315,7 +342,7 @@ Os dados nunca ficam presos ao dispositivo: tudo passa pelo Postgres via Server 
 
 ## 9. Permissões
 
-Um único helper, `requireCampaignAccess(userId, campaignId, minRole?)`, usado por toda action/rota que toca dado de campanha — nunca a UI sozinha decide o que é permitido (seção 12.7 detalha o padrão de exclusão segura que depende disso). Na Fase 0 só o papel `OWNER` existia de fato; a partir da Fase 1 o ranking `OWNER > CO_GM > PLAYER` já é aplicado de verdade: toda criação/edição/exclusão de conteúdo exige `CO_GM` (o padrão do parâmetro `minRole` é `PLAYER`, suficiente para leitura). A UI para promover alguém a `CO_GM`/`PLAYER` (convites) ainda não existe — isso é Fase 9 — mas a checagem de papel já está pronta para quando existir. Visibilidade por conteúdo (`GM_ONLY`/`PLAYERS`/`PUBLIC`) chegou na Fase 1 como campo nas entidades de conteúdo (NPCs, Locais, Facções, Lore); ainda não há um "Player View" (Fase 9) que efetivamente filtre por ela — hoje o campo só é exibido como metadado. A rota `/api/v1/uploads` exige `CO_GM` (não `OWNER`) para upload vinculado a campanha desde a Fase 4 — antes disso, um resquício da Fase 0 exigia `OWNER`, contradizendo o resto do modelo (ver seção 15.11).
+Um único helper, `requireCampaignAccess(userId, campaignId, minRole?)`, usado por toda action/rota que toca dado de campanha — nunca a UI sozinha decide o que é permitido (seção 12.7 detalha o padrão de exclusão segura que depende disso). Na Fase 0 só o papel `OWNER` existia de fato; a partir da Fase 1 o ranking `OWNER > CO_GM > PLAYER` já é aplicado de verdade: toda criação/edição/exclusão de conteúdo exige `CO_GM` (o padrão do parâmetro `minRole` é `PLAYER`, suficiente para leitura). A UI para promover alguém a `CO_GM`/`PLAYER` chegou na Fase 9 (`/campaigns/[id]/members`, seção 20.1). Visibilidade por conteúdo (`GM_ONLY`/`PLAYERS`/`PUBLIC`) chegou na Fase 1 como campo nas entidades de conteúdo (NPCs, Locais, Facções, Lore, e mais 8 tipos nas fases seguintes); a Fase 9 (seção 20.2) implementou o "Player View" que efetivamente filtra por ela — antes disso o campo era só metadado exibido, sem nenhuma checagem real. A rota `/api/v1/uploads` exige `CO_GM` (não `OWNER`) para upload vinculado a campanha desde a Fase 4 — antes disso, um resquício da Fase 0 exigia `OWNER`, contradizendo o resto do modelo (ver seção 15.11).
 
 ## 10. Bots do Discord
 
@@ -699,7 +726,34 @@ Esta é a sub-feature central do pivô da seção 19.0 — o "gerador aleatório
 
 **Salvar uma sugestão não duplica lógica de criação.** "Usar esta sugestão" abre um `Dialog` com o `ConsequenceForm` (Fase 2) tal como ele já existe, sem nenhuma variante nova — só com `defaultValues` preenchidos a partir da sugestão (`description` = texto completo gerado; `title` = os primeiros 90 caracteres, truncados com "…", editável antes de salvar) e `status`/`visibility` nos mesmos padrões de sempre (`PENDING`/`GM_ONLY`). O `action` passado ao formulário é `createConsequenceAction` (`preparation/consequences/actions.ts`) já existente, sem alteração — uma vez salva, a sugestão vira uma `Consequence` comum, indistinguível de uma criada à mão; o Consequence Suggester nunca marca a linha com uma flag de "gerada automaticamente", porque não existe diferença de tratamento depois de salva.
 
-## 20. Roadmap de fases
+## 20. Fase 9 — Decisões técnicas
+
+Esta fase fecha um buraco conhecido desde a Fase 0: a seção 9 (Permissões) já dizia que o ranking `OWNER > CO_GM > PLAYER` "já está pronto para quando existir" uma UI de convite, e que o campo `visibility` "só é exibido como metadado" sem filtrar de verdade. As quatro sub-features abaixo são exatamente isso — fechar essas duas lacunas e adicionar Handouts — sem introduzir nenhum conceito de jogo novo (nenhuma ficha de personagem, XP ou mecânica de sistema, mesmo princípio da seção 14.3).
+
+### 20.1 Convite de membro: adicionar direto por e-mail, não um fluxo assíncrono
+
+`addCampaignMemberAction` (`modules/players/members/actions.ts`) exige `OWNER` (não `CO_GM`) e recebe um e-mail + papel (`CO_GM`/`PLAYER`); se existir um `User` com aquele e-mail, cria o `CampaignMember` na hora. Não há convite assíncrono com token de e-mail — mesma decisão de escopo da Fase 4 (bots) e Fase 8 (IA): qualquer coisa que dependa de enviar e-mail de verdade exigiria um provedor (Resend, SES, etc.), credenciais e custo, para resolver um problema que "a pessoa já ter uma conta e o mestre saber o e-mail dela" já resolve de forma mais simples. A mensagem de erro quando o e-mail não existe é explícita sobre isso ("a pessoa precisa criar uma conta no hub primeiro"). O `OWNER` nunca é um destino de papel válido — a campanha sempre tem exatamente uma dona, e tanto `updateCampaignMemberRoleAction` quanto `removeCampaignMemberAction` recusam a linha do `OWNER` mesmo que alguém tente contornar a UI (a mesma filosofia de "nunca confiar só na UI" da seção 9).
+
+### 20.2 Player View: filtragem real de `visibility`, não mais só metadado
+
+Toda a lógica nova vive em `modules/core/permissions/visibility.ts`, sem `"server-only"` de propósito — são funções puras sobre dados já carregados (mesmo espírito de `heuristics.ts`/`roll.ts` da Fase 8), reaproveitadas por todo `list<Entidade>`/`get<Entidade>ForUser` dos 12 tipos de `RelatableEntityType`:
+
+- `visibilityWhereForRole(role)` — vira a condição `{ not: "GM_ONLY" }` no `where` do Prisma para `PLAYER`, ou `undefined` (sem filtro) para `CO_GM`/`OWNER`. A listagem nem busca o que o papel não pode ver, em vez de buscar tudo e filtrar depois.
+- `entityForRole(entity, role)` — gate de leitura individual: devolve `null` quando a entidade existe mas é `GM_ONLY` e o papel é `PLAYER`. Reaproveita o `if (!entidade) notFound()` que já existia em toda página de detalhe — "existe, mas não é para você ver" agora cai no mesmo caminho de "não existe", sem exigir uma tela de "acesso negado" diferente (que revelaria a existência da entidade, o oposto do que se quer).
+- `stripGmFields(entity, role, campos)` — zera campos "só do mestre" para `PLAYER`, sem alterar o formato da entidade (os campos viram `null`, não somem do objeto). Levantamento completo dos campos livres que são claramente conteúdo de bastidor: `Npc.secrets`/`Npc.gmNotes`, `Faction.secrets`. Nenhuma outra das 12 entidades relacionáveis tem um campo equivalente no schema hoje — `SessionPlan.gmNotes` existe mas nunca esteve em risco: a página de detalhe de Session Plan já exige `CO_GM` mínimo desde a Fase 2 (é material de preparação do mestre, seção 13.5), então um `PLAYER` nunca alcança essa query.
+- `filterVisibleForRole` existe como defesa em profundidade (filtra uma lista já carregada), para o caso de algum ponto futuro buscar sem passar pelo `where` — hoje todo `list<Entidade>` já usa `visibilityWhereForRole` na query em si.
+
+### 20.3 Player Knowledge: reaproveitar `visibility`, não um sistema novo
+
+Em vez de modelar "o que cada jogador já sabe" como um conceito próprio (o que exigiria uma tabela de conhecimento por-usuário-por-entidade, e o produto não tem o conceito de "personagem" para pendurar isso), Player Knowledge é só uma forma rápida de mudar `visibility` de `GM_ONLY` para `PLAYERS` **sem abrir o formulário de edição completo**: um botão "Revelar aos jogadores" (`RevealToPlayersButton`, `revealToPlayersAction`) nas 12 páginas de detalhe de `RelatableEntityType`, pensado para o meio da sessão ("acabei de mostrar este NPC ao grupo, não quero editar o formulário todo agora"). A action é um despachante fino — um `updateMany` condicionado a `visibility: "GM_ONLY"` por tipo, idempotente (chamar de novo numa entidade já revelada não faz nada) — mesmo espírito do Content Graveyard (Fase 7, seção 18.4): nenhuma lógica de negócio nova, só uma forma mais rápida de acionar a que já existe.
+
+### 20.4 Handouts: página própria, não um painel do Modo Sessão
+
+A sugestão original era Handouts viver dentro do Modo Sessão (Fase 3), por ser algo usado ao vivo durante a mesa. Isso foi descartado ao notar que a página do Modo Sessão exige `CO_GM` mínimo para carregar (Fase 3, é ferramenta de mestre — Session Log, Combat Tracker) — se Handouts vivesse ali dentro, um `PLAYER` nunca conseguiria ver um handout revelado, o oposto do propósito da feature. Por isso Handouts é uma página própria (`/campaigns/[campaignId]/handouts`), acessível a qualquer membro (`PLAYER` incluído), com a criação/gestão restrita a `CO_GM`/`OWNER` dentro da mesma página.
+
+`Handout.revealed` é um booleano, não o enum `Visibility` de três estados usado pelo resto da wiki — decisão deliberada: antes de revelado, não existe meio-termo "para jogadores" ou "público" fazendo sentido para uma carta/mapa que o mestre ainda nem decidiu mostrar; é sempre oculto até o clique em "Revelar", um binário mais simples e mais honesto sobre o que a feature realmente precisa do que reaproveitar um enum de três estados por consistência superficial. `imageUrl` reaproveita `/api/v1/uploads` e `ImageUploadField` (Fase 0) sem nenhuma rota nova.
+
+## 21. Roadmap de fases
 
 | Fase | Escopo |
 | --- | --- |
@@ -712,6 +766,6 @@ Esta é a sub-feature central do pivô da seção 19.0 — o "gerador aleatório
 | **6 — Game Tools** ✅ | Monster/Boss/Item Forge, Power Builder, Table Builder, Loot Generator (construído sobre o Table Builder) |
 | **7 — Inteligência da campanha** ✅ | Campaign Brain avançado, Context Engine, Campaign Health, Content Graveyard — 100% heurística/agregação sobre dados locais, zero IA (seção 18.0) |
 | **8 — Copiloto sem LLM** ✅ | Lore Guardian, Canon Checker, Campaign Recall, Consequence Suggester — heurística e geração combinatória 100% local sobre dados existentes, zero chamada a LLM/IA externa (pivô orçamentário do usuário, seção 19.0) |
-| 9 — Jogadores | Player View, Player Knowledge, Handouts, Co-Mestres, permissões avançadas |
+| **9 — Jogadores** ✅ | Convite/gestão de Co-Mestres, Player View (filtragem real de `visibility`), Player Knowledge (revelar conteúdo em tempo real), Handouts |
 
-Cada fase começa lendo o código existente, reaproveitando `modules/core` e os componentes de `components/ui`, sem reescrever o que já funciona.
+O roadmap original termina na Fase 9. Cada fase começou lendo o código existente, reaproveitando `modules/core` e os componentes de `components/ui`, sem reescrever o que já funciona — o mesmo vale para qualquer trabalho futuro sobre este projeto.
