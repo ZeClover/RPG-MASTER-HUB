@@ -44,6 +44,17 @@ Em desenvolvimento, uploads (ícone/banner/imagem de campanha, e agora faixas de
 
 O Music/SFX Board (`/campaigns/[campaignId]/audio`) precisa dos dois bots do Discord rodando para tocar música/efeitos de verdade — eles são um projeto Node separado em `bot/`, não fazem parte deste app. Veja [`bot/README.md`](./bot/README.md) para configuração e execução; só é preciso rodá-los durante a sessão, não 24/7.
 
+## Deploy (Vercel)
+
+O projeto está conectado à Vercel, com deploy automático a cada push na branch `claude/admiring-euler-h4uduo` (produção). Setup usado:
+
+- **Banco**: Neon (Postgres serverless), conectado via Storage do projeto na Vercel — injeta `DATABASE_URL` automaticamente. Free tier, sem cartão de crédito.
+- **Storage de arquivos**: Vercel Blob, acesso **Public** (necessário — o app usa as URLs diretamente em `<img>`/`<audio>`, sem token de leitura). Injeta `BLOB_READ_WRITE_TOKEN`.
+- **Variáveis manuais**: `AUTH_SECRET` (gerado com `openssl rand -base64 32`) e `STORAGE_PROVIDER=vercel-blob`.
+- **Migrações**: `pnpm build` roda `prisma migrate deploy` antes do `next build` — todo deploy aplica migrações pendentes automaticamente, sem passo manual.
+
+Tudo isso roda no plano **Hobby** (gratuito) da Vercel.
+
 ## Estrutura
 
 Veja [`ARCHITECTURE.md`](./ARCHITECTURE.md) para a estrutura de pastas, o modelo de dados, estratégias de autenticação/permissões/sincronização e o roadmap de fases.
