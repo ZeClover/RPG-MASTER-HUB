@@ -65,8 +65,11 @@ export async function updateCategoryAction(
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
-  await db.customCategory.update({
-    where: { id: categoryId },
+  // Escopado por campaignId (não só por id) — categoryId chega como argumento
+  // de Server Action, não confiar que já pertence a esta campanha só porque
+  // quem chamou é CO_GM/OWNER dela (mesmo raciocínio de `entry-actions.ts`).
+  await db.customCategory.updateMany({
+    where: { id: categoryId, campaignId },
     data: { name: parsed.data.name, description: n(parsed.data.description) },
   });
 
