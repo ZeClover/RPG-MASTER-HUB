@@ -6,6 +6,7 @@ import { requireCampaignAccess, CampaignAccessError } from "@/modules/core/permi
 import { updateCampaignAction } from "@/modules/core/campaigns/actions";
 import { CampaignForm } from "@/components/campaigns/campaign-form";
 import { ArchiveCampaignButton } from "@/components/campaigns/archive-campaign-button";
+import { SettingsTabs } from "@/components/campaigns/settings-tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Configurações da campanha" };
@@ -34,6 +35,8 @@ export default async function CampaignSettingsPage({ params }: SettingsPageProps
         <h1 className="text-xl font-semibold">Configurações da campanha</h1>
         <p className="text-sm text-muted-foreground">Ajuste identidade, imagens e informações básicas.</p>
       </div>
+
+      <SettingsTabs campaignId={campaignId} />
 
       <CampaignForm
         action={boundUpdateAction}

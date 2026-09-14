@@ -37,6 +37,7 @@ model User {
   sessions    Session[]
   campaigns   Campaign[]       @relation("CampaignOwner")
   memberships CampaignMember[]
+  characters  Character[]      @relation("CharacterPlayer")
 
   @@map("users")
 }
@@ -135,6 +136,10 @@ model Campaign {
   rollTables RollTable[]
 
   handouts Handout[]
+
+  moduleSettings   CampaignModuleSetting[]
+  characters       Character[]
+  customCategories CustomCategory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1250,4 +1255,94 @@ model Handout {
 
   @@index([campaignId, revealed])
   @@map("handouts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Fase 10 — Módulos de campanha, Personagens e Categorias Personalizadas
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Override por campanha do estado ligado/desligado de um módulo (ver
+/// ARCHITECTURE.md, seção 21). `moduleKey` é a `key` do item correspondente
+/// em `CAMPAIGN_NAV_ITEMS` — sem enum, porque a lista de módulos alternáveis
+/// vive no código (registro em `campaign-nav-items.ts`), não no banco. Uma
+/// linha só existe aqui quando o mestre já mexeu no padrão; a ausência de
+/// linha para uma chave significa "use o `defaultEnabled` do registro".
+model CampaignModuleSetting {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  moduleKey  String
+  enabled    Boolean
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, moduleKey])
+  @@map("campaign_module_settings")
+}
+
+/// Ficha simples de personagem jogador (Fase 10, ver ARCHITECTURE.md, seção
+/// 21.2) — o hub nunca teve um conceito de PC, só NPC. `gmNotes` segue o
+/// mesmo padrão de `Npc.gmNotes`/`Faction.secrets`: campo livre, zerado para
+/// PLAYER via `stripGmFields` (reaproveitado sem exigir que Character entre
+/// no sistema de `RelatableEntityType`/Relationship).
+model Character {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  playerId   String
+  player     User     @relation("CharacterPlayer", fields: [playerId], references: [id], onDelete: Cascade)
+
+  name     String
+  concept  String?
+  imageUrl String?
+  bio      String? @db.Text
+  gmNotes  String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId])
+  @@map("characters")
+}
+
+/// Categoria nomeada pelo mestre (Fase 10, ver ARCHITECTURE.md, seção 21.3)
+/// — o "arsenal maior" pedido: em vez de features fixas ("Matéria Escolar",
+/// "Artes Importantes"), um par Categoria→Entrada genérico, mesmo desenho de
+/// RollTable→RollTableEntry (Fase 6, seção 17.3).
+model CustomCategory {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  entries CustomCategoryEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId])
+  @@map("custom_categories")
+}
+
+/// Entrada de uma CustomCategory. Tem `visibility` (o enum de três estados,
+/// não o binário de `Handout.revealed`) porque, ao contrário de um Handout,
+/// uma entrada de categoria é conteúdo de wiki desde a criação — pode nascer
+/// já como PLAYERS/PUBLIC, sem precisar de um "revelar" explícito.
+model CustomCategoryEntry {
+  id         String         @id @default(cuid())
+  categoryId String
+  category   CustomCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  title      String
+  content    String?    @db.Text
+  imageUrl   String?
+  visibility Visibility @default(GM_ONLY)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@map("custom_category_entries")
 }

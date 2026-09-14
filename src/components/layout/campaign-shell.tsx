@@ -10,15 +10,16 @@ interface CampaignShellProps {
   campaign: { id: string; name: string; iconUrl: string | null };
   user: SessionUserLike;
   role: CampaignRole;
+  enabledModuleKeys: string[];
   children: ReactNode;
 }
 
-export function CampaignShell({ campaign, user, role, children }: CampaignShellProps) {
+export function CampaignShell({ campaign, user, role, enabledModuleKeys, children }: CampaignShellProps) {
   return (
     <div className="flex min-h-screen flex-col">
       <CampaignTopbar campaign={campaign} user={user} />
       <div className="flex flex-1 flex-col sm:flex-row">
-        <CampaignSidebar campaignId={campaign.id} role={role} />
+        <CampaignSidebar campaignId={campaign.id} role={role} enabledModuleKeys={enabledModuleKeys} />
         <main className="min-w-0 flex-1">{children}</main>
       </div>
       <CommandPalette campaignId={campaign.id} />

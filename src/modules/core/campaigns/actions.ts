@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/modules/core/auth/session";
 import { requireCampaignAccess, CampaignAccessError } from "@/modules/core/permissions";
 import { campaignFormSchema, type CampaignFormInput } from "@/modules/core/campaigns/schemas";
+import { TOGGLEABLE_MODULES } from "@/components/layout/campaign-nav-items";
 
 export type CampaignFormState =
   | {
@@ -130,4 +131,35 @@ export async function unarchiveCampaignAction(campaignId: string) {
   });
 
   revalidatePath("/home");
+}
+
+const TOGGLEABLE_MODULE_KEYS = new Set(TOGGLEABLE_MODULES.map((item) => item.key));
+
+/**
+ * Liga/desliga um módulo para a campanha (Fase 10, ver ARCHITECTURE.md, seção
+ * 21) — decisão de OWNER, mesmo padrão de `updateCampaignMemberRoleAction`.
+ * `moduleKey` nunca é confiado só pela UI: precisa bater com uma chave real
+ * de `TOGGLEABLE_MODULES`.
+ */
+export async function setCampaignModuleEnabledAction(campaignId: string, moduleKey: string, enabled: boolean) {
+  const user = await requireUser();
+  try {
+    await requireCampaignAccess(user.id, campaignId, "OWNER");
+  } catch (error) {
+    if (error instanceof CampaignAccessError) return { error: error.message };
+    throw error;
+  }
+
+  if (!TOGGLEABLE_MODULE_KEYS.has(moduleKey)) {
+    return { error: "Módulo inválido." };
+  }
+
+  await db.campaignModuleSetting.upsert({
+    where: { campaignId_moduleKey: { campaignId, moduleKey } },
+    create: { campaignId, moduleKey, enabled },
+    update: { enabled },
+  });
+
+  revalidatePath(`/campaigns/${campaignId}/settings/modules`);
+  revalidatePath(`/campaigns/${campaignId}`, "layout");
 }

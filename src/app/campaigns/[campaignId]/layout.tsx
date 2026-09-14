@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { requireUser } from "@/modules/core/auth/session";
 import { getCampaignForUser } from "@/modules/core/campaigns/queries";
+import { getEnabledModuleKeys } from "@/modules/core/campaigns/module-settings";
 import { CampaignAccessError } from "@/modules/core/permissions";
 import { CampaignShell } from "@/components/layout/campaign-shell";
 
@@ -23,8 +24,10 @@ export default async function CampaignLayout({ children, params }: CampaignLayou
     throw error;
   }
 
+  const enabledModuleKeys = Array.from(await getEnabledModuleKeys(campaignId));
+
   return (
-    <CampaignShell campaign={campaign} user={user} role={role}>
+    <CampaignShell campaign={campaign} user={user} role={role} enabledModuleKeys={enabledModuleKeys}>
       {children}
     </CampaignShell>
   );

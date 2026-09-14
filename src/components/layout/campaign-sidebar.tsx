@@ -12,14 +12,27 @@ import { roleAtLeast } from "@/lib/roles";
 interface CampaignSidebarProps {
   campaignId: string;
   role: CampaignRole;
+  /** Chaves de módulos ligados para esta campanha (Fase 10) — itens `alwaysOn` ignoram isto. */
+  enabledModuleKeys: string[];
 }
 
-function NavEntries({ campaignId, role, orientation }: CampaignSidebarProps & { orientation: "vertical" | "horizontal" }) {
+function NavEntries({
+  campaignId,
+  role,
+  enabledModuleKeys,
+  orientation,
+}: CampaignSidebarProps & { orientation: "vertical" | "horizontal" }) {
   const pathname = usePathname();
   // Player View (Fase 9): itens com `minRole` ficam fora da navegação para
   // quem não tem o papel — não só desabilitados, já que não são "em breve",
   // são "não é para você" (ex.: Membros, gestão só de CO_GM/OWNER).
-  const items = CAMPAIGN_NAV_ITEMS.filter((item) => roleAtLeast(role, item.minRole ?? "PLAYER"));
+  // Módulos de campanha (Fase 10): itens não-`alwaysOn` só aparecem se a
+  // campanha os tiver ligado — declutter da navegação, não controle de acesso
+  // (ver ARCHITECTURE.md, seção 21).
+  const items = CAMPAIGN_NAV_ITEMS.filter(
+    (item) =>
+      roleAtLeast(role, item.minRole ?? "PLAYER") && (item.alwaysOn || enabledModuleKeys.includes(item.key)),
+  );
 
   return (
     <>
