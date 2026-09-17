@@ -84,13 +84,13 @@ export default async function CampaignDashboardPage({ params }: DashboardPagePro
       done: characterCount > 0,
       href: `/campaigns/${campaignId}/characters/new`,
     },
-    {
+    enabledModuleKeys.has("npcs") && {
       key: "npc",
       label: "Criar um NPC importante (ex.: um professor)",
       done: npcCount > 0,
       href: `/campaigns/${campaignId}/npcs/new`,
     },
-    {
+    enabledModuleKeys.has("locations") && {
       key: "location",
       label: "Criar um Local",
       done: locationCount > 0,
@@ -103,7 +103,7 @@ export default async function CampaignDashboardPage({ params }: DashboardPagePro
         done: sessionPlanCount > 0,
         href: `/campaigns/${campaignId}/session-plans/new`,
       },
-    {
+    enabledModuleKeys.has("lore") && {
       key: "rules",
       label: "Documentar as regras da campanha",
       subLabel: 'crie uma página de Lore chamada "Regras da Casa", por exemplo',
