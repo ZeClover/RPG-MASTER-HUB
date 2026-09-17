@@ -12,3 +12,7 @@ export async function listHandouts(userId: string, campaignId: string) {
     orderBy: { createdAt: "desc" },
   });
 }
+
+export function countHandouts(campaignId: string) {
+  return db.handout.count({ where: { campaignId } });
+}

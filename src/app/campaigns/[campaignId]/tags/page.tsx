@@ -30,8 +30,8 @@ export default async function TagsPage({ params }: TagsPageProps) {
       <div>
         <h1 className="text-xl font-semibold">Tags</h1>
         <p className="text-sm text-muted-foreground">
-          Gerencie as tags da campanha. Novas tags também podem ser criadas na hora, ao editar qualquer NPC,
-          Local, Facção, Lore ou Ideia.
+          Gerencie as tags da campanha. Novas tags também podem ser criadas na hora, ao editar
+          NPCs, Locais, Facções, Lore, Missões e outros conteúdos com tag da campanha.
         </p>
       </div>
 

@@ -1,49 +1,32 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  BookOpen,
-  Brain,
-  CalendarCheck,
-  Dices,
-  GitBranch,
-  Lightbulb,
-  MapPin,
-  Scroll,
-  Settings,
-  Shield,
-  ShieldAlert,
-  Users,
-} from "lucide-react";
+import { Brain, Check, Circle, Dices, Settings, Swords } from "lucide-react";
 
 import { requireUser } from "@/modules/core/auth/session";
 import { getCampaignForUser, countCampaignMembers } from "@/modules/core/campaigns/queries";
 import { CampaignAccessError } from "@/modules/core/permissions";
-import { countNpcs } from "@/modules/creation/npcs/queries";
-import { countLocations } from "@/modules/creation/locations/queries";
-import { countFactions } from "@/modules/creation/factions/queries";
-import { countLorePages } from "@/modules/creation/lore/queries";
-import { countIdeas } from "@/modules/creation/ideas/queries";
-import { countSessionPlans } from "@/modules/preparation/session-plans/queries";
-import { countQuests } from "@/modules/preparation/quests/queries";
-import { countPlotThreads } from "@/modules/preparation/plot-threads/queries";
-import { countConsequences } from "@/modules/preparation/consequences/queries";
+import { getEnabledModuleKeys } from "@/modules/core/campaigns/module-settings";
+import { DASHBOARD_MODULE_CARDS } from "@/modules/core/dashboard/module-cards";
 import { listFavoriteEntities, listRecentEntities } from "@/modules/core/dashboard/queries";
+import { roleAtLeast } from "@/lib/roles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { EntityRefList } from "@/components/wiki/entity-ref-list";
 import { formatDateTime, formatRelativeTime } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-const COMING_SOON_ACTIONS = [
-  { label: "Rolar Dados", icon: Dices, phase: "Fase 3" },
-  { label: "Abrir Modo Sessão", icon: BookOpen, phase: "Fase 3" },
-];
-
 interface DashboardPageProps {
   params: Promise<{ campaignId: string }>;
+}
+
+interface QuickStartItem {
+  key: string;
+  label: string;
+  subLabel?: string;
+  done: boolean;
+  href: string;
 }
 
 export default async function CampaignDashboardPage({ params }: DashboardPageProps) {
@@ -51,57 +34,85 @@ export default async function CampaignDashboardPage({ params }: DashboardPagePro
   const user = await requireUser();
 
   let campaign;
+  let role;
   try {
-    ({ campaign } = await getCampaignForUser(user.id, campaignId));
+    ({ campaign, role } = await getCampaignForUser(user.id, campaignId));
   } catch (error) {
     if (error instanceof CampaignAccessError) notFound();
     throw error;
   }
 
-  const [
-    memberCount,
-    npcCount,
-    locationCount,
-    factionCount,
-    loreCount,
-    ideaCount,
-    sessionPlanCount,
-    questCount,
-    plotThreadCount,
-    consequenceCount,
-    recent,
-    favorites,
-  ] = await Promise.all([
+  const [memberCount, enabledModuleKeys, recent, favorites, cardCounts] = await Promise.all([
     countCampaignMembers(campaignId),
-    countNpcs(campaignId),
-    countLocations(campaignId),
-    countFactions(campaignId),
-    countLorePages(campaignId),
-    countIdeas(campaignId),
-    countSessionPlans(campaignId),
-    countQuests(campaignId),
-    countPlotThreads(campaignId),
-    countConsequences(campaignId),
+    getEnabledModuleKeys(campaignId),
     listRecentEntities(campaignId, 6),
     listFavoriteEntities(campaignId, 6),
+    // Conta todo módulo do registro de uma vez, ligado ou não — mais barato que orquestrar duas
+    // rodadas de queries, e o checklist de início rápido (Parte 3) precisa de algumas destas
+    // contagens (NPCs/Locais/Lore) mesmo fora do conjunto de cards visíveis.
+    Promise.all(DASHBOARD_MODULE_CARDS.map((card) => card.count(campaignId))),
   ]);
 
-  const contentCounts = [
-    { label: "NPCs", count: npcCount, href: `/campaigns/${campaignId}/npcs`, icon: Users },
-    { label: "Locais", count: locationCount, href: `/campaigns/${campaignId}/locations`, icon: MapPin },
-    { label: "Facções", count: factionCount, href: `/campaigns/${campaignId}/factions`, icon: Shield },
-    { label: "Lore", count: loreCount, href: `/campaigns/${campaignId}/lore`, icon: BookOpen },
-    { label: "Ideias", count: ideaCount, href: `/campaigns/${campaignId}/ideas`, icon: Lightbulb },
-    { label: "Sessões", count: sessionPlanCount, href: `/campaigns/${campaignId}/session-plans`, icon: CalendarCheck },
-    { label: "Missões", count: questCount, href: `/campaigns/${campaignId}/quests`, icon: Scroll },
-    { label: "Tramas", count: plotThreadCount, href: `/campaigns/${campaignId}/plot-threads`, icon: GitBranch },
-    {
-      label: "Consequências",
-      count: consequenceCount,
-      href: `/campaigns/${campaignId}/consequences`,
-      icon: ShieldAlert,
+  const countByModuleKey = new Map(DASHBOARD_MODULE_CARDS.map((card, index) => [card.moduleKey, cardCounts[index]]));
+
+  const visibleCards = DASHBOARD_MODULE_CARDS.filter(
+    (card) => enabledModuleKeys.has(card.moduleKey) && roleAtLeast(role, card.minRole ?? "PLAYER"),
+  );
+
+  const quickActionCards = visibleCards.flatMap((card) => {
+    if (!roleAtLeast(role, card.createMinRole ?? card.minRole ?? "PLAYER")) return [];
+    const href = card.newHref(campaignId);
+    if (!href) return [];
+    return [{ moduleKey: card.moduleKey, icon: card.icon, label: card.createLabel, href }];
+  });
+
+  const canRunSession = roleAtLeast(role, "CO_GM");
+
+  // Checklist de início rápido (Parte 3) — sempre computado a partir do que já existe na
+  // campanha, nunca guardado num campo/tabela própria: uma campanha "concluída" é só uma
+  // campanha onde as contagens abaixo já não são zero, não um estado a manter em sincronia.
+  const npcCount = countByModuleKey.get("npcs") ?? 0;
+  const locationCount = countByModuleKey.get("locations") ?? 0;
+  const loreCount = countByModuleKey.get("lore") ?? 0;
+  const characterCount = countByModuleKey.get("characters") ?? 0;
+  const sessionPlanCount = countByModuleKey.get("session-plans") ?? 0;
+
+  const checklistItems: QuickStartItem[] = [
+    enabledModuleKeys.has("characters") && {
+      key: "character",
+      label: "Criar seu primeiro Personagem",
+      done: characterCount > 0,
+      href: `/campaigns/${campaignId}/characters/new`,
     },
-  ];
+    {
+      key: "npc",
+      label: "Criar um NPC importante (ex.: um professor)",
+      done: npcCount > 0,
+      href: `/campaigns/${campaignId}/npcs/new`,
+    },
+    {
+      key: "location",
+      label: "Criar um Local",
+      done: locationCount > 0,
+      href: `/campaigns/${campaignId}/locations/new`,
+    },
+    canRunSession &&
+      enabledModuleKeys.has("session-plans") && {
+        key: "session-plan",
+        label: "Planejar a primeira Sessão",
+        done: sessionPlanCount > 0,
+        href: `/campaigns/${campaignId}/session-plans/new`,
+      },
+    {
+      key: "rules",
+      label: "Documentar as regras da campanha",
+      subLabel: 'crie uma página de Lore chamada "Regras da Casa", por exemplo',
+      done: loreCount > 0,
+      href: `/campaigns/${campaignId}/lore/new`,
+    },
+  ].filter((item): item is QuickStartItem => Boolean(item));
+
+  const quickStartDone = checklistItems.every((item) => item.done);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-8">
@@ -120,13 +131,54 @@ export default async function CampaignDashboardPage({ params }: DashboardPagePro
         )}
       </div>
 
+      {canRunSession && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Configuração inicial</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {quickStartDone ? (
+              <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Check className="size-4 shrink-0 text-primary" /> Configuração inicial concluída.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2.5">
+                {checklistItems.map((item) => (
+                  <li key={item.key}>
+                    {item.done ? (
+                      <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                        <span className="line-through">{item.label}</span>
+                      </p>
+                    ) : (
+                      <Link
+                        href={item.href}
+                        className="flex items-start gap-2 text-sm hover:text-primary"
+                      >
+                        <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                        <span>
+                          {item.label}
+                          {item.subLabel && (
+                            <span className="block text-xs text-muted-foreground">{item.subLabel}</span>
+                          )}
+                        </span>
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {contentCounts.map((item) => (
-          <Link key={item.label} href={item.href}>
+        {visibleCards.map((card) => (
+          <Link key={card.moduleKey} href={card.listHref(campaignId)}>
             <Card className="p-4 transition-colors hover:border-primary/50">
-              <item.icon className="mb-2 size-4 text-muted-foreground" />
-              <p className="text-lg font-semibold">{item.count}</p>
-              <p className="text-xs text-muted-foreground">{item.label}</p>
+              <card.icon className="mb-2 size-4 text-muted-foreground" />
+              <p className="text-lg font-semibold">{countByModuleKey.get(card.moduleKey) ?? 0}</p>
+              <p className="text-xs text-muted-foreground">{card.label}</p>
             </Card>
           </Link>
         ))}
@@ -187,63 +239,27 @@ export default async function CampaignDashboardPage({ params }: DashboardPagePro
           <CardTitle>Ações rápidas</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-2 pt-0 sm:grid-cols-4">
-          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
-            <Link href={`/campaigns/${campaignId}/npcs/new`}>
-              <Users className="size-4" /> Criar NPC
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
-            <Link href={`/campaigns/${campaignId}/locations/new`}>
-              <MapPin className="size-4" /> Criar Local
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
-            <Link href={`/campaigns/${campaignId}/factions/new`}>
-              <Shield className="size-4" /> Criar Facção
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
-            <Link href={`/campaigns/${campaignId}/lore/new`}>
-              <BookOpen className="size-4" /> Criar Lore
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
-            <Link href={`/campaigns/${campaignId}/ideas`}>
-              <Lightbulb className="size-4" /> Nova Ideia
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
-            <Link href={`/campaigns/${campaignId}/session-plans/new`}>
-              <CalendarCheck className="size-4" /> Nova Sessão
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
-            <Link href={`/campaigns/${campaignId}/quests/new`}>
-              <Scroll className="size-4" /> Criar Missão
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
-            <Link href={`/campaigns/${campaignId}/plot-threads/new`}>
-              <GitBranch className="size-4" /> Criar Trama
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
-            <Link href={`/campaigns/${campaignId}/consequences/new`}>
-              <ShieldAlert className="size-4" /> Criar Consequência
-            </Link>
-          </Button>
-          {COMING_SOON_ACTIONS.map((action) => (
-            <Tooltip key={action.label}>
-              <TooltipTrigger
-                aria-disabled="true"
-                className="flex cursor-not-allowed flex-col items-center gap-2 rounded-lg border border-border p-3 text-xs text-muted-foreground/50"
-              >
-                <action.icon className="size-4" />
-                {action.label}
-              </TooltipTrigger>
-              <TooltipContent>Em breve — chega na {action.phase}</TooltipContent>
-            </Tooltip>
+          {quickActionCards.map((action) => (
+            <Button key={action.moduleKey} asChild variant="outline" className="h-auto flex-col gap-2 py-3">
+              <Link href={action.href}>
+                <action.icon className="size-4" /> {action.label}
+              </Link>
+            </Button>
           ))}
+          {canRunSession && (
+            <>
+              <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
+                <Link href={`/campaigns/${campaignId}/session`}>
+                  <Dices className="size-4" /> Rolar Dados
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
+                <Link href={`/campaigns/${campaignId}/session`}>
+                  <Swords className="size-4" /> Abrir Modo Sessão
+                </Link>
+              </Button>
+            </>
+          )}
           <Button asChild variant="outline" className="h-auto flex-col gap-2 py-3">
             <Link href={`/campaigns/${campaignId}/settings`}>
               <Settings className="size-4" />
@@ -264,8 +280,9 @@ export default async function CampaignDashboardPage({ params }: DashboardPagePro
           </Link>
         </CardHeader>
         <CardContent className="pt-0 text-sm text-muted-foreground">
-          Distribuição canônico/rascunho e o feed de tudo que mudou na campanha, incluindo Timeline, Mistérios,
-          Monstros, Itens, Poderes, Tabelas e Sessões — não só o que aparece nos cards acima.
+          Distribuição canônico/rascunho e o feed completo de tudo que mudou na campanha — todo o
+          histórico de edição, incluindo módulos sem card aqui no Dashboard, como Relógios
+          Narrativos.
         </CardContent>
       </Card>
     </div>

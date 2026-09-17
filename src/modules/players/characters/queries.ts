@@ -32,3 +32,7 @@ export async function getCharacterForUser(userId: string, campaignId: string, ch
   if (!character) return null;
   return stripGmFields(character, role, [...CHARACTER_GM_ONLY_FIELDS]);
 }
+
+export function countCharacters(campaignId: string) {
+  return db.character.count({ where: { campaignId } });
+}

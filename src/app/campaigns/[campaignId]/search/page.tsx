@@ -30,13 +30,15 @@ export default async function SearchPage({ params, searchParams }: SearchPagePro
   }
 
   const query = q?.trim() ?? "";
-  const results = query ? await searchCampaign(campaignId, query, 30) : [];
+  const results = query ? await searchCampaign(user.id, campaignId, query, 30) : [];
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 sm:p-8">
       <div>
         <h1 className="text-xl font-semibold">Busca</h1>
-        <p className="text-sm text-muted-foreground">Procure em NPCs, locais, facções, lore e ideias.</p>
+        <p className="text-sm text-muted-foreground">
+          Procure em NPCs, locais, personagens, sessões e outros conteúdos ativos na campanha.
+        </p>
       </div>
 
       <form action={`/campaigns/${campaignId}/search`} className="flex gap-2">
