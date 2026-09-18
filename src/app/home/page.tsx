@@ -6,6 +6,7 @@ import { requireUser } from "@/modules/core/auth/session";
 import { listActiveCampaignsForUser, listArchivedCampaignsForUser } from "@/modules/core/campaigns/queries";
 import { HomeTopbar } from "@/components/layout/home-topbar";
 import { CampaignCard } from "@/components/campaigns/campaign-card";
+import { ImportCampaignDialog } from "@/components/campaigns/import-campaign-dialog";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "Minhas campanhas" };
@@ -27,11 +28,14 @@ export default async function HomePage() {
             <h1 className="text-xl font-semibold">Minhas campanhas</h1>
             <p className="text-sm text-muted-foreground">Escolha uma campanha para continuar ou comece uma nova.</p>
           </div>
-          <Button asChild>
-            <Link href="/campaigns/new">
-              <Plus className="size-4" /> Nova campanha
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <ImportCampaignDialog />
+            <Button asChild>
+              <Link href="/campaigns/new">
+                <Plus className="size-4" /> Nova campanha
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {activeCampaigns.length === 0 ? (
