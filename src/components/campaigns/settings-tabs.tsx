@@ -12,6 +12,7 @@ export function SettingsTabs({ campaignId }: { campaignId: string }) {
   const tabs = [
     { href: `/campaigns/${campaignId}/settings`, label: "Geral" },
     { href: `/campaigns/${campaignId}/settings/modules`, label: "Módulos" },
+    { href: `/campaigns/${campaignId}/settings/data`, label: "Dados" },
   ];
 
   return (
