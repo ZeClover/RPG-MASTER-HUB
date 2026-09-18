@@ -1,0 +1,74 @@
+name: CI
+
+# Fase 12, Part 6 — primeira esteira de CI do projeto (ver ARCHITECTURE.md).
+# O repo usa pnpm (ver `packageManager` em package.json / pnpm-lock.yaml), não
+# npm — não há package-lock.json, então os passos abaixo são o equivalente em
+# pnpm do que foi pedido (`npm ci` → `pnpm install --frozen-lockfile`, etc.),
+# não uma tradução literal.
+#
+# NÃO roda a suíte Playwright (e2e de navegador) aqui — fica para uma fase
+# futura configurar Chromium + `next start`/`next dev` num runner do Actions.
+# Esta esteira cobre só o que já é rápido e determinístico: types, lint,
+# testes de unidade/integração (Vitest, contra o Postgres do serviço abaixo)
+# e o build de produção.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/rpgmasterhub?schema=public"
+      AUTH_SECRET: "ci-throwaway-secret-nao-usar-em-producao"
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rpgmasterhub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Gerar Prisma Client
+        run: npx prisma generate
+
+      - name: Aplicar migrações
+        run: npx prisma migrate deploy
+
+      - name: Checagem de tipos
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Testes (Vitest)
+        run: pnpm test
+
+      - name: Build de produção
+        run: pnpm build
