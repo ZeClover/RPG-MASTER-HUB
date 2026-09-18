@@ -22,7 +22,12 @@ export function LoginForm() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">Senha</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password">Senha</Label>
+          <Link href="/forgot-password" className="text-xs text-primary hover:underline">
+            Esqueci minha senha
+          </Link>
+        </div>
         <Input id="password" name="password" type="password" required autoComplete="current-password" />
         {state?.errors?.password && <p className="text-xs text-destructive">{state.errors.password[0]}</p>}
       </div>
