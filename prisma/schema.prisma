@@ -141,6 +141,13 @@ model Campaign {
   characters       Character[]
   customCategories CustomCategory[]
 
+  attributeDefs   AttributeDef[]
+  resourceDefs    ResourceDef[]
+  skillDefs       SkillDef[]
+  conditionDefs   ConditionDef[]
+  rollFormulaDefs RollFormulaDef[]
+  sheetSections   SheetSection[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1345,4 +1352,163 @@ model CustomCategoryEntry {
 
   @@index([categoryId])
   @@map("custom_category_entries")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Fase 13 — Construtor de Sistema
+// ─────────────────────────────────────────────────────────────────────────
+
+/// As 6 áreas de uma ficha (`SheetSection`, abaixo). `CUSTOM_TEXT` é a única
+/// seção com conteúdo próprio (`customText`) — as demais só referenciam "a
+/// lista atual de X da campanha" (Atributos/Recursos/Perícias/Condições/
+/// Fórmulas), sem duplicar dado.
+enum SheetSectionKind {
+  ATTRIBUTES
+  RESOURCES
+  SKILLS
+  CONDITIONS
+  FORMULAS
+  CUSTOM_TEXT
+}
+
+/// Atributo do sistema de jogo da campanha (ex.: Força, Destreza). `key` é o
+/// token que `RollFormulaDef.formula` referencia como `{key}` — gerado a
+/// partir de `name` com `slugifyTagName` (mesmo utilitário/padrão de
+/// colisão de `Tag`, ver ARCHITECTURE.md). `gmOnly` marca um atributo como
+/// campo secreto da ficha — some da leitura de um PLAYER (ver
+/// `stripSystemGmOnly` em `queries.ts`).
+model AttributeDef {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name         String
+  key          String
+  description  String?
+  defaultValue Int      @default(0)
+  gmOnly       Boolean  @default(false)
+  order        Int      @default(0)
+
+  skills SkillDef[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, key])
+  @@index([campaignId, order])
+  @@map("attribute_defs")
+}
+
+/// Recurso consumível/rastreável do sistema (ex.: PV, PM). Só define o
+/// "molde" (nome, `key`, máximo padrão) — o valor atual/máximo por
+/// personagem é responsabilidade da Fase 14 (ver ARCHITECTURE.md).
+model ResourceDef {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name        String
+  key         String
+  description String?
+  defaultMax  Int      @default(0)
+  gmOnly      Boolean  @default(false)
+  order       Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, key])
+  @@index([campaignId, order])
+  @@map("resource_defs")
+}
+
+/// Perícia do sistema, opcionalmente ligada a um atributo (ex.: Atletismo →
+/// Força) só para exibição/organização — a fórmula de rolagem de uma
+/// perícia é um `RollFormulaDef` à parte, não um campo aqui. Excluir o
+/// atributo relacionado limpa o vínculo (`SetNull`), a perícia continua
+/// existindo "sem atributo relacionado".
+model SkillDef {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name               String
+  key                String
+  relatedAttributeId String?
+  relatedAttribute   AttributeDef? @relation(fields: [relatedAttributeId], references: [id], onDelete: SetNull)
+  defaultBonus       Int           @default(0)
+  gmOnly             Boolean       @default(false)
+  order              Int           @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, key])
+  @@index([campaignId, order])
+  @@map("skill_defs")
+}
+
+/// Condição/status que pode ser aplicado a um personagem (ex.: Envenenado,
+/// Atordoado) — só o catálogo da campanha; aplicar uma condição a um PC
+/// específico é Fase 14. Sem `key`/token: condições não entram em fórmulas.
+model ConditionDef {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  color       String?
+  order       Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId, order])
+  @@map("condition_defs")
+}
+
+/// Fórmula de rolagem nomeada (ex.: "Teste de Força" → "1d20 + {forca}").
+/// Validada em `createRollFormulaAction`/`updateRollFormulaAction` contra as
+/// `key`s de `AttributeDef`/`SkillDef` existentes na campanha (ver
+/// `src/lib/formula.ts`) — nunca contra dados de personagem, que ainda não
+/// existem nesta fase.
+model RollFormulaDef {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name        String
+  formula     String
+  description String?
+  order       Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId, order])
+  @@map("roll_formula_defs")
+}
+
+/// Uma seção do layout da ficha única da campanha (ver ARCHITECTURE.md —
+/// deliberadamente UM template implícito por campanha, não vários; "aluno
+/// vs. professor vs. monstro" fica para fase futura). `customText` só é
+/// relevante quando `kind = CUSTOM_TEXT`; para as demais `kind`s, a seção é
+/// só um marcador de "aqui entra a lista de X", sem conteúdo próprio.
+model SheetSection {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  kind       SheetSectionKind
+  title      String
+  customText String?
+  gmOnly     Boolean          @default(false)
+  order      Int              @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId, order])
+  @@map("sheet_sections")
 }

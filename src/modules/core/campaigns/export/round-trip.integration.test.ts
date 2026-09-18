@@ -26,6 +26,7 @@ describe("round-trip de export/import de campanha", () => {
   let npcPlayersId: string;
   let parentLocationId: string;
   let childLocationId: string;
+  let attributeDefId: string;
 
   let importedCampaignId: string;
   let importSummary: ImportSummary;
@@ -112,6 +113,23 @@ describe("round-trip de export/import de campanha", () => {
     await db.rollTableEntry.create({ data: { tableId: rollTable.id, label: "Alcateia de lobos", weight: 2 } });
     await db.rollTableEntry.create({ data: { tableId: rollTable.id, label: "Caravana de mercadores", weight: 1 } });
 
+    // Fase 13 — Construtor de Sistema: pelo menos uma linha de cada um dos 6
+    // modelos novos, incluindo o caso difícil de `SkillDef.relatedAttributeId`
+    // (FK opcional que precisa ser remapeada para o novo id de AttributeDef).
+    const attributeDef = await db.attributeDef.create({
+      data: { campaignId, name: "Força", key: "forca", defaultValue: 2, gmOnly: false },
+    });
+    attributeDefId = attributeDef.id;
+    await db.resourceDef.create({ data: { campaignId, name: "Pontos de Vida", key: "pv", defaultMax: 20 } });
+    await db.skillDef.create({
+      data: { campaignId, name: "Atletismo", key: "atletismo", relatedAttributeId: attributeDefId, defaultBonus: 1 },
+    });
+    await db.conditionDef.create({ data: { campaignId, name: "Envenenado", color: "#22c55e" } });
+    await db.rollFormulaDef.create({
+      data: { campaignId, name: "Teste de Força", formula: "1d20 + {forca}", description: "Teste padrão de Força" },
+    });
+    await db.sheetSection.create({ data: { campaignId, kind: "ATTRIBUTES", title: "Atributos" } });
+
     const doc = await buildCampaignExport(campaignId);
     const result = await importCampaignExport(importerId, doc);
     importedCampaignId = result.campaignId;
@@ -156,6 +174,12 @@ describe("round-trip de export/import de campanha", () => {
     expect(originalDoc.data.customCategoryEntries.length).toBe(1);
     expect(originalDoc.data.rollTables.length).toBe(1);
     expect(originalDoc.data.rollTableEntries.length).toBe(2);
+    expect(originalDoc.data.attributeDefs.length).toBe(1);
+    expect(originalDoc.data.resourceDefs.length).toBe(1);
+    expect(originalDoc.data.skillDefs.length).toBe(1);
+    expect(originalDoc.data.conditionDefs.length).toBe(1);
+    expect(originalDoc.data.rollFormulaDefs.length).toBe(1);
+    expect(originalDoc.data.sheetSections.length).toBe(1);
   });
 
   it("mantém os valores escalares das linhas, mas com ids diferentes", async () => {
@@ -248,6 +272,43 @@ describe("round-trip de export/import de campanha", () => {
 
     expect(importSummary.counts.characters).toBe(1);
     expect(importSummary.warnings.some((warning) => warning.includes("1 personagem"))).toBe(true);
+  });
+
+  it("preserva as definições de sistema (Fase 13) e remapeia SkillDef.relatedAttributeId para o novo AttributeDef", async () => {
+    const importedAttribute = await db.attributeDef.findFirst({
+      where: { campaignId: importedCampaignId, key: "forca" },
+    });
+    expect(importedAttribute).not.toBeNull();
+    expect(importedAttribute!.id).not.toBe(attributeDefId);
+    expect(importedAttribute!.defaultValue).toBe(2);
+
+    const importedResource = await db.resourceDef.findFirst({ where: { campaignId: importedCampaignId, key: "pv" } });
+    expect(importedResource).not.toBeNull();
+    expect(importedResource!.defaultMax).toBe(20);
+
+    const importedSkill = await db.skillDef.findFirst({ where: { campaignId: importedCampaignId, key: "atletismo" } });
+    expect(importedSkill).not.toBeNull();
+    expect(importedSkill!.relatedAttributeId).not.toBeNull();
+    expect(importedSkill!.relatedAttributeId).not.toBe(attributeDefId);
+    expect(importedSkill!.relatedAttributeId).toBe(importedAttribute!.id);
+
+    const importedCondition = await db.conditionDef.findFirst({
+      where: { campaignId: importedCampaignId, name: "Envenenado" },
+    });
+    expect(importedCondition).not.toBeNull();
+    expect(importedCondition!.color).toBe("#22c55e");
+
+    const importedFormula = await db.rollFormulaDef.findFirst({
+      where: { campaignId: importedCampaignId, name: "Teste de Força" },
+    });
+    expect(importedFormula).not.toBeNull();
+    expect(importedFormula!.formula).toBe("1d20 + {forca}");
+
+    const importedSection = await db.sheetSection.findFirst({
+      where: { campaignId: importedCampaignId, kind: "ATTRIBUTES" },
+    });
+    expect(importedSection).not.toBeNull();
+    expect(importedSection!.title).toBe("Atributos");
   });
 
   it("a campanha nova tem exatamente um CampaignMember: quem importou, como OWNER", async () => {

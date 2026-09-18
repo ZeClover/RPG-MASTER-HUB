@@ -567,6 +567,83 @@ export const customCategoryEntryExportSchema = z.object({
 });
 export type CustomCategoryEntryExport = z.infer<typeof customCategoryEntryExportSchema>;
 
+// ── Fase 13 — Construtor de Sistema ─────────────────────────────────────────
+
+const SHEET_SECTION_KIND = ["ATTRIBUTES", "RESOURCES", "SKILLS", "CONDITIONS", "FORMULAS", "CUSTOM_TEXT"] as const;
+
+export const attributeDefExportSchema = z.object({
+  id,
+  name: z.string(),
+  key: z.string(),
+  description: text,
+  defaultValue: z.number().int(),
+  gmOnly: z.boolean(),
+  order: z.number().int(),
+  createdAt: isoDate,
+  updatedAt: isoDate,
+});
+export type AttributeDefExport = z.infer<typeof attributeDefExportSchema>;
+
+export const resourceDefExportSchema = z.object({
+  id,
+  name: z.string(),
+  key: z.string(),
+  description: text,
+  defaultMax: z.number().int(),
+  gmOnly: z.boolean(),
+  order: z.number().int(),
+  createdAt: isoDate,
+  updatedAt: isoDate,
+});
+export type ResourceDefExport = z.infer<typeof resourceDefExportSchema>;
+
+export const skillDefExportSchema = z.object({
+  id,
+  name: z.string(),
+  key: z.string(),
+  relatedAttributeId: z.string().nullable(),
+  defaultBonus: z.number().int(),
+  gmOnly: z.boolean(),
+  order: z.number().int(),
+  createdAt: isoDate,
+  updatedAt: isoDate,
+});
+export type SkillDefExport = z.infer<typeof skillDefExportSchema>;
+
+export const conditionDefExportSchema = z.object({
+  id,
+  name: z.string(),
+  description: text,
+  color: text,
+  order: z.number().int(),
+  createdAt: isoDate,
+  updatedAt: isoDate,
+});
+export type ConditionDefExport = z.infer<typeof conditionDefExportSchema>;
+
+export const rollFormulaDefExportSchema = z.object({
+  id,
+  name: z.string(),
+  formula: z.string(),
+  description: text,
+  order: z.number().int(),
+  createdAt: isoDate,
+  updatedAt: isoDate,
+});
+export type RollFormulaDefExport = z.infer<typeof rollFormulaDefExportSchema>;
+
+export const sheetSectionExportSchema = z.object({
+  id,
+  kind: z.enum(SHEET_SECTION_KIND),
+  title: z.string(),
+  customText: text,
+  gmOnly: z.boolean(),
+  order: z.number().int(),
+  createdAt: isoDate,
+  updatedAt: isoDate,
+});
+export type SheetSectionExport = z.infer<typeof sheetSectionExportSchema>;
+
 // ── Documento completo ───────────────────────────────────────────────────────
 
 export const campaignExportDataSchema = z.object({
@@ -617,6 +694,12 @@ export const campaignExportDataSchema = z.object({
   characters: z.array(characterExportSchema),
   customCategories: z.array(customCategoryExportSchema),
   customCategoryEntries: z.array(customCategoryEntryExportSchema),
+  attributeDefs: z.array(attributeDefExportSchema),
+  resourceDefs: z.array(resourceDefExportSchema),
+  skillDefs: z.array(skillDefExportSchema),
+  conditionDefs: z.array(conditionDefExportSchema),
+  rollFormulaDefs: z.array(rollFormulaDefExportSchema),
+  sheetSections: z.array(sheetSectionExportSchema),
 });
 export type CampaignExportData = z.infer<typeof campaignExportDataSchema>;
 
@@ -688,4 +771,10 @@ export const EXPORT_DATA_LABELS: Record<keyof CampaignExportData, string> = {
   characters: "Personagens",
   customCategories: "Categorias personalizadas",
   customCategoryEntries: "Entradas de categoria",
+  attributeDefs: "Atributos (sistema)",
+  resourceDefs: "Recursos (sistema)",
+  skillDefs: "Perícias (sistema)",
+  conditionDefs: "Condições (sistema)",
+  rollFormulaDefs: "Fórmulas de rolagem (sistema)",
+  sheetSections: "Seções da ficha (sistema)",
 };

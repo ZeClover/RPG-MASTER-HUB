@@ -424,6 +424,85 @@ export async function importCampaignExport(
       );
       counts.customCategories = customCategoryIdMap.size;
 
+      // Fase 13 — Construtor de Sistema: AttributeDef/ResourceDef/ConditionDef/
+      // RollFormulaDef/SheetSection são filhos diretos de Campaign, sem
+      // dependência entre si (SkillDef é a exceção — seu `relatedAttributeId`
+      // opcional depende de `attributeDefIdMap`, então ela entra no Passo 3).
+      const attributeDefIdMap = await insertIndependent(doc.data.attributeDefs, (row) =>
+        tx.attributeDef.create({
+          data: {
+            campaignId: newCampaignId,
+            name: row.name,
+            key: row.key,
+            description: row.description,
+            defaultValue: row.defaultValue,
+            gmOnly: row.gmOnly,
+            order: row.order,
+            createdAt: new Date(row.createdAt),
+          },
+        }),
+      );
+      counts.attributeDefs = attributeDefIdMap.size;
+
+      const resourceDefIdMap = await insertIndependent(doc.data.resourceDefs, (row) =>
+        tx.resourceDef.create({
+          data: {
+            campaignId: newCampaignId,
+            name: row.name,
+            key: row.key,
+            description: row.description,
+            defaultMax: row.defaultMax,
+            gmOnly: row.gmOnly,
+            order: row.order,
+            createdAt: new Date(row.createdAt),
+          },
+        }),
+      );
+      counts.resourceDefs = resourceDefIdMap.size;
+
+      const conditionDefIdMap = await insertIndependent(doc.data.conditionDefs, (row) =>
+        tx.conditionDef.create({
+          data: {
+            campaignId: newCampaignId,
+            name: row.name,
+            description: row.description,
+            color: row.color,
+            order: row.order,
+            createdAt: new Date(row.createdAt),
+          },
+        }),
+      );
+      counts.conditionDefs = conditionDefIdMap.size;
+
+      const rollFormulaDefIdMap = await insertIndependent(doc.data.rollFormulaDefs, (row) =>
+        tx.rollFormulaDef.create({
+          data: {
+            campaignId: newCampaignId,
+            name: row.name,
+            formula: row.formula,
+            description: row.description,
+            order: row.order,
+            createdAt: new Date(row.createdAt),
+          },
+        }),
+      );
+      counts.rollFormulaDefs = rollFormulaDefIdMap.size;
+
+      const sheetSectionIdMap = await insertIndependent(doc.data.sheetSections, (row) =>
+        tx.sheetSection.create({
+          data: {
+            campaignId: newCampaignId,
+            kind: row.kind,
+            title: row.title,
+            customText: row.customText,
+            gmOnly: row.gmOnly,
+            order: row.order,
+            createdAt: new Date(row.createdAt),
+          },
+        }),
+      );
+      counts.sheetSections = sheetSectionIdMap.size;
+
       const audioTrackIdMap = await insertIndependent(doc.data.audioTracks, (row) =>
         tx.audioTrack.create({
           data: {
@@ -523,6 +602,27 @@ export async function importCampaignExport(
         }),
       );
       counts.rollTableEntries = rollTableEntryIdMap.size;
+
+      // SkillDef depende do id-map de AttributeDef (Passo 1) para o vínculo
+      // opcional `relatedAttributeId` — fallback para `null` (não
+      // `requireMapped`) quando não resolver, mesmo raciocínio defensivo de
+      // `Clue.linkedEntityId` acima: preferimos preservar a perícia "sem
+      // atributo relacionado" a abortar o import inteiro por causa dela.
+      const skillDefIdMap = await insertIndependent(doc.data.skillDefs, (row) =>
+        tx.skillDef.create({
+          data: {
+            campaignId: newCampaignId,
+            name: row.name,
+            key: row.key,
+            relatedAttributeId: row.relatedAttributeId ? (attributeDefIdMap.get(row.relatedAttributeId) ?? null) : null,
+            defaultBonus: row.defaultBonus,
+            gmOnly: row.gmOnly,
+            order: row.order,
+            createdAt: new Date(row.createdAt),
+          },
+        }),
+      );
+      counts.skillDefs = skillDefIdMap.size;
 
       const customCategoryEntryIdMap = await insertIndependent(doc.data.customCategoryEntries, (row) =>
         tx.customCategoryEntry.create({

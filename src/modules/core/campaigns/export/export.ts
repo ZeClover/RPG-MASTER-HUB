@@ -99,6 +99,12 @@ export async function buildCampaignExport(campaignId: string): Promise<CampaignE
     characters,
     customCategories,
     customCategoryEntries,
+    attributeDefs,
+    resourceDefs,
+    skillDefs,
+    conditionDefs,
+    rollFormulaDefs,
+    sheetSections,
   ] = await Promise.all([
     db.npc.findMany({ where: { campaignId } }),
     db.location.findMany({ where: { campaignId } }),
@@ -147,6 +153,12 @@ export async function buildCampaignExport(campaignId: string): Promise<CampaignE
     db.character.findMany({ where: { campaignId } }),
     db.customCategory.findMany({ where: { campaignId } }),
     db.customCategoryEntry.findMany({ where: { category: { campaignId } } }),
+    db.attributeDef.findMany({ where: { campaignId } }),
+    db.resourceDef.findMany({ where: { campaignId } }),
+    db.skillDef.findMany({ where: { campaignId } }),
+    db.conditionDef.findMany({ where: { campaignId } }),
+    db.rollFormulaDef.findMany({ where: { campaignId } }),
+    db.sheetSection.findMany({ where: { campaignId } }),
   ]);
 
   const data: CampaignExportData = {
@@ -199,6 +211,12 @@ export async function buildCampaignExport(campaignId: string): Promise<CampaignE
     characters: serializeAll(characters) as unknown as CampaignExportData["characters"],
     customCategories: serializeAll(customCategories) as unknown as CampaignExportData["customCategories"],
     customCategoryEntries: serializeAll(customCategoryEntries) as unknown as CampaignExportData["customCategoryEntries"],
+    attributeDefs: serializeAll(attributeDefs) as unknown as CampaignExportData["attributeDefs"],
+    resourceDefs: serializeAll(resourceDefs) as unknown as CampaignExportData["resourceDefs"],
+    skillDefs: serializeAll(skillDefs) as unknown as CampaignExportData["skillDefs"],
+    conditionDefs: serializeAll(conditionDefs) as unknown as CampaignExportData["conditionDefs"],
+    rollFormulaDefs: serializeAll(rollFormulaDefs) as unknown as CampaignExportData["rollFormulaDefs"],
+    sheetSections: serializeAll(sheetSections) as unknown as CampaignExportData["sheetSections"],
   };
 
   return {
