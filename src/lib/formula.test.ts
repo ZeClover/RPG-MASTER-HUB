@@ -66,6 +66,25 @@ describe("evaluateFormula", () => {
     expect(result.total).toBe(result.diceResult.total + 6);
   });
 
+  it("soma um modificador que vem ANTES da rolagem de dados na fórmula", () => {
+    // Regressão: sem um sinal implícito no início do resto da fórmula, o
+    // termo antes da rolagem de dados (aqui, {forca}) ficava sem "+"/"-" à
+    // frente depois de "1d20" ser removido, e era descartado da soma.
+    const result = evaluateFormula("{forca} + 1d20", { forca: 3 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.modifierTotal).toBe(3);
+    expect(result.total).toBe(result.diceResult.total + 3);
+  });
+
+  it("soma um modificador negativo que vem ANTES da rolagem de dados", () => {
+    const result = evaluateFormula("{forca} + 1d20", { forca: -2 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.modifierTotal).toBe(-2);
+    expect(result.total).toBe(result.diceResult.total - 2);
+  });
+
   it("usa 0 para token sem valor informado", () => {
     const result = evaluateFormula("1d6 + {sorte}", {});
     expect(result.ok).toBe(true);

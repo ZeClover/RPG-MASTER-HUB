@@ -81,9 +81,16 @@ export function evaluateFormula(formula: string, values: Record<string, number>)
     return { ok: false, error: `Notação de dados inválida: "${diceNotation}" (limites: 1-20 dados, 2-100 lados).` };
   }
 
+  // `MODIFIER_TERM_PATTERN` exige um sinal `+`/`-` explícito antes de cada
+  // número — sem isto, um termo que vem ANTES da rolagem de dados na fórmula
+  // (ex.: "{forca} + 1d20") ficaria sem sinal algum depois de remover "1d20"
+  // do início da string, e seria descartado silenciosamente da soma. Um "+"
+  // implícito no início do resto normaliza isso, para que a posição da
+  // rolagem de dados na fórmula nunca importe.
   const remainder = substituted.replace(diceNotation, "");
+  const normalizedRemainder = /^\s*[+-]/.test(remainder) ? remainder : `+${remainder}`;
   let modifierTotal = 0;
-  for (const match of remainder.matchAll(MODIFIER_TERM_PATTERN)) {
+  for (const match of normalizedRemainder.matchAll(MODIFIER_TERM_PATTERN)) {
     const sign = match[1] === "-" ? -1 : 1;
     modifierTotal += sign * Number(match[2]);
   }
