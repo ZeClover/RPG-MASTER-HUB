@@ -233,6 +233,15 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
     defaultEnabled: false,
     description: "Poderes, magias e habilidades especiais.",
   },
+  {
+    key: "system",
+    label: "Sistema",
+    icon: Settings2,
+    href: (id) => `/campaigns/${id}/system`,
+    section: "Jogo",
+    defaultEnabled: false,
+    description: "Construtor de sistema — atributos, recursos, perícias, condições, fórmulas de rolagem e a ficha da campanha.",
+  },
 
   {
     key: "audio",
@@ -345,18 +354,6 @@ export const CAMPAIGN_NAV_ITEMS: CampaignNavItem[] = [
     section: "Arsenal",
     defaultEnabled: false,
     description: "Crie categorias próprias — matéria escolar, artes importantes, ou o que sua campanha precisar.",
-  },
-
-  {
-    key: "system",
-    label: "Sistema",
-    icon: Settings2,
-    // Fase 9 encerra o roadmap original (ARCHITECTURE.md, seção 22) sem incluir
-    // "Sistema" — em vez de deixar uma referência a uma fase que já passou, o
-    // tooltip evita prometer um número de fase que ninguém decidiu ainda.
-    comingSoonPhase: "próxima leva de fases",
-    section: "Em breve",
-    alwaysOn: true,
   },
 
   {
